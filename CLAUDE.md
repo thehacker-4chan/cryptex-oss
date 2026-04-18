@@ -104,6 +104,49 @@ Supported providers as of 2026-04-18:
 ### OpenRouter-backed features
 AI Translation (on the Transform tab), PromptCraft, Anti-Classifier, and the Decoder's optional "translate to English" all now go through the multi-provider gateway (defaulting to OpenRouter) using a key the user pastes into Advanced Settings. The key is stored in `localStorage` only. The legacy `js/data/openrouterModels.js` catalog is superseded by `app/src/lib/ai/catalog.svelte.ts`.
 
+### Chat playground + dataset pipeline
+
+Routes: `/chat` (new chat / empty state), `/chat/:id` (active conversation), `/dataset` (Dataset Inspector).
+
+**Persistence — Dexie `cryptex-chat` DB** (4 tables):
+- `chats` — top-level conversation rows (`id`, `title`, `mode`, `modelId`, `ownerId`, `updatedAt`, `tombstoned`)
+- `messages` — per-message rows (`id`, `chatId`, `role`, `content`, `parts`, `ownerId`, `updatedAt`, `tombstoned`)
+- `attachments` — binary + metadata rows (`id`, `messageId`, `mimeType`, `data`, `ownerId`, `updatedAt`)
+- `toolStates` — per-message tool-call results (`id`, `messageId`, `techniqueId`, `result`, `updatedAt`)
+
+Every table carries `ownerId`, `updatedAt`, and `tombstoned` — the three auth-readiness seams.
+No Svelte component imports Dexie directly; all DB access goes through `$lib/chat/repo.ts`.
+
+**Auth-readiness seams** (no login shipped in v1, but retrofit is a config change not a refactor):
+- `$lib/auth/session.svelte.ts` — reactive `currentUser` (`id: 'local'` in v1, real JWT sub in v2)
+- `$lib/auth/key-vault.ts` — `KeyVault` wrapper; reads from `localStorage` in v1, SecureStorage/KMS in v2
+- `ownerId` on every row — always `'local'` today; filtered by real user ID after auth
+
+**Technique registry** — `$lib/chat/techniques/registry.ts` aggregates:
+- 162 transformers (from `src/transformers/` via the SvelteKit static adapter)
+- 9 mutators: `rephrase`, `obfuscate`, `roleplay`, `multilingual`, `expand`, `compress`, `metaphor`, `fragment`, `custom`
+- 9 classifier techniques (from `from-classifier.ts`)
+- 3 conversation modes: `creative`, `intelligent`, `adaptive` (local prompt templates, `modes/` directory)
+- 1 godmode stub: scaffolded + disabled in v1 (`godmode/` directory)
+
+**Streaming + tool-calling**:
+- Streaming via `gateway.streamChat()` from `$lib/ai/gateway.ts` (Sub-project #1)
+- Tool-calls for transformer techniques execute locally in-browser (no round-trip); result stored in `toolStates`
+- Dispatch logic in `$lib/chat/dispatch.ts`; slash-command parsing in `$lib/chat/slashParser.ts`
+
+**Slash commands** (typed in the composer):
+- 9 mutators: `/rephrase`, `/obfuscate`, `/roleplay`, `/multilingual`, `/expand`, `/compress`, `/metaphor`, `/fragment`, `/custom`
+- `/btw` — out-of-context message (not included in LLM context window, captured for dataset only)
+
+**Dataset Inspector** (`/dataset`):
+- Browse all chats + messages in a paginated table (`$lib/dataset/queries.ts`)
+- Export: **ShareGPT** JSONL (`$lib/dataset/export-sharegpt.ts`) or **raw** JSONL (`$lib/dataset/export-raw.ts`)
+- Download triggered client-side via `$lib/dataset/download.ts`
+
+**CSP notes for chat**:
+- `img-src 'self' data: blob:` — required for attachment thumbnails and multimodal image content parts passed to the LLM
+- `script-src … 'wasm-unsafe-eval'` — required by `pdfjs-dist` (lazy-loaded for PDF attachment extraction)
+
 ### Two-layer access to transforms (web vs CLI)
 - **Web**: Vue app loads `dist/js/bundles/transforms-bundle.js` → `window.transforms`.
 - **CLI**: Python (`cryptex_cli/bridge.py`) spawns `node scripts/cli_bridge.js`, which `require`s `src/transformers/loader-node.js` and exchanges JSON over stdio. This is why changes to a transform are instantly reflected in the CLI — no separate build step.

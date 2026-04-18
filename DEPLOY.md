@@ -254,13 +254,14 @@ All other app state is client-side: OpenRouter key lives in `localStorage` on th
 
 ## Content Security Policy
 
-Cryptex ships CSP as a response header via Traefik. Minimum `connect-src` for
-the multi-provider gateway (Commit 7 of 2026-04-18 rollout):
+Cryptex ships CSP as a response header via nginx (see `nginx.conf`). Minimum
+policy covering the multi-provider gateway and chat playground:
 
 ```
 default-src 'self';
-script-src 'self' 'wasm-unsafe-eval';
+script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval';
 style-src 'self' 'unsafe-inline';
+font-src 'self' data:;
 connect-src 'self'
   https://openrouter.ai
   https://api.anthropic.com
@@ -270,12 +271,28 @@ connect-src 'self'
   https://api.deepinfra.com
   https://api.cerebras.ai
   https://api.sambanova.ai;
-img-src 'self' data: blob:;
+img-src 'self' data: blob: https:;
 frame-ancestors 'none';
 base-uri 'self';
 form-action 'self';
+object-src 'none';
 ```
 
-Add the header via a Traefik middleware on the Cryptex router. See
-`docs/CUSTOM-ENDPOINTS.md` for how users with custom OpenAI-compatible
-endpoints should extend `connect-src`.
+### Chat playground CSP notes
+
+**`img-src 'self' data: blob:`** — required for two chat-specific reasons:
+- Attachment thumbnails rendered from `FileReader.readAsDataURL()` produce `data:` URIs
+- Multimodal image content parts passed to vision-capable LLMs are sent as `data:` base64 strings; the `<img>` preview in the message bubble uses the same URI
+
+**`script-src … 'wasm-unsafe-eval'`** — required by `pdfjs-dist`, which is
+lazy-loaded when the user attaches a PDF. The PDF.js worker uses WebAssembly
+internally. Without this directive the worker fails silently and PDF text
+extraction returns empty.
+
+**No new `connect-src` hosts** — the chat playground only calls providers
+already listed above via the multi-provider gateway. Custom OpenAI-compatible
+endpoints users configure in Settings must be added manually; see
+`docs/CUSTOM-ENDPOINTS.md`.
+
+Add extra headers via Traefik middleware if you are terminating TLS at Traefik
+instead of serving directly from nginx.
