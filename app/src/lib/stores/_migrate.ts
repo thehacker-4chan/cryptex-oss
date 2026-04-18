@@ -69,4 +69,9 @@ export function runLegacyMigration(): void {
     // One line, not noisy.
     console.info(`[cryptex] migrated ${migrated} legacy localStorage key${migrated === 1 ? '' : 's'}`);
   }
+
+  // Actual KeyVault migrations deferred — gateway still reads cryptex.providers directly;
+  // coordinated refactor lands later when providers.svelte.ts is updated to use keyVault.
+  // The keyVault abstraction (key-vault.ts) and migrateLegacyKey() are already available
+  // for Chat-side storage. Wire per-key migrations here once each reader is updated.
 }

@@ -19,6 +19,9 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: [
+      // Persistence + IDs
+      'dexie',
+      'ulid',
       // AI / provider packages
       'ai',
       '@openrouter/ai-sdk-provider',
