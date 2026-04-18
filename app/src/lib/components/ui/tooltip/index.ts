@@ -1,0 +1,6 @@
+import Root from './tooltip.svelte';
+import Content from './tooltip-content.svelte';
+import Trigger from './tooltip-trigger.svelte';
+import Provider from './tooltip-provider.svelte';
+
+export { Root, Content, Trigger, Provider, Root as Tooltip };

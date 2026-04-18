@@ -58,6 +58,7 @@ export default defineConfig({
       'lucide-svelte/icons/flask-conical',
       'lucide-svelte/icons/gift',
       'lucide-svelte/icons/github',
+      'lucide-svelte/icons/grip-vertical',
       'lucide-svelte/icons/hash',
       'lucide-svelte/icons/history',
       'lucide-svelte/icons/info',

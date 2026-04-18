@@ -8,6 +8,7 @@
   import History from 'lucide-svelte/icons/history';
   import HelpCircle from 'lucide-svelte/icons/circle-help';
   import { sessionLog } from '$lib/stores/sessionLog.svelte';
+  import ModePill from './ModePill.svelte';
 
   interface Props {
     onopenHistory: () => void;
@@ -29,6 +30,7 @@
     </a>
 
     <div class="flex items-center gap-2">
+      <ModePill />
       <button
         type="button"
         onclick={onopenHistory}

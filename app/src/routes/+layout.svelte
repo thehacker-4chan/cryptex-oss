@@ -10,6 +10,7 @@
   import { runLegacyMigration } from '$lib/stores/_migrate';
   import { initCatalogStore } from '$lib/ai/catalog.svelte';
   import { ensureAdSenseState } from '$lib/ads/adsense.svelte';
+  import { chatMode } from '$lib/stores/chatMode.svelte';
 
   let { children } = $props();
   let historyOpen = $state(false);
@@ -42,7 +43,9 @@
   <HeaderBar onopenHistory={() => (historyOpen = true)} />
 
   <main class="container pt-6 pb-20">
-    <div class="mb-6"><TabRail /></div>
+    {#if chatMode.value === 'tools'}
+      <div class="mb-6"><TabRail /></div>
+    {/if}
     <div class="fade-in">
       {@render children?.()}
     </div>
