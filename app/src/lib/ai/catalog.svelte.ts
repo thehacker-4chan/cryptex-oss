@@ -2,7 +2,7 @@ import { browser } from '$app/environment';
 import type { Model } from './types';
 import { listProviders } from './providers.svelte';
 import { openrouterAdapter } from './adapters/openrouter';
-// Future adapters added in Commits 2 and 3.
+import { anthropicAdapter } from './adapters/anthropic';
 
 const CACHE_KEY = 'cryptex.catalogCache.v2';
 const CACHE_TTL_MS = 60 * 60 * 1000;
@@ -39,7 +39,12 @@ async function fetchAll(signal: AbortSignal): Promise<Model[]> {
         const models = await a.fetchCatalog(signal);
         results.push(...models);
       }
-      // anthropic + openai-compat land in later commits
+      if (p.id === 'anthropic') {
+        const a = anthropicAdapter(p);
+        const models = await a.fetchCatalog(signal);
+        results.push(...models);
+      }
+      // openai-compat lands in Commit 3
     } catch (e) {
       // per-provider failure does not fail the whole catalog
       if ((e as Error)?.name === 'AbortError') throw e;

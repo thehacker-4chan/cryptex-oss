@@ -21,6 +21,7 @@ export default defineConfig({
       // AI / provider packages
       'ai',
       '@openrouter/ai-sdk-provider',
+      '@ai-sdk/anthropic',
       // UI utilities
       'clsx',
       'tailwind-merge',

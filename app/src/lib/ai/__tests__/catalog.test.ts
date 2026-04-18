@@ -133,6 +133,43 @@ describe('refreshCatalog', () => {
   });
 
   // -------------------------------------------------------------------------
+  // C4-pre: Anthropic adapter branch — fetchCatalog returns static models
+  // -------------------------------------------------------------------------
+  it('fans out over anthropic provider and returns static anthropic models', async () => {
+    vi.doMock('$app/environment', () => ({ browser: true }));
+    vi.doMock('../providers.svelte', () => ({
+      listProviders: () => [{ id: 'anthropic', apiKey: 'sk-ant-x', enabled: true }]
+    }));
+    vi.doMock('../adapters/anthropic', () => ({
+      anthropicAdapter: () => ({
+        id: 'anthropic',
+        fetchCatalog: async () => {
+          const STATIC = [
+            { id: 'claude-opus-4-7',   name: 'Claude Opus 4.7'   },
+            { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6' },
+            { id: 'claude-haiku-4-5',  name: 'Claude Haiku 4.5'  }
+          ];
+          return STATIC.map((m) => ({
+            id: m.id,
+            qualifiedId: `anthropic:${m.id}` as const,
+            name: m.name,
+            provider: 'anthropic' as const,
+            upstreamProvider: 'Anthropic',
+            capabilities: { streaming: true, tools: true, vision: true, reasoning: true, jsonSchema: true }
+          }));
+        }
+      })
+    }));
+
+    const { refreshCatalog, catalog } = await import('../catalog.svelte');
+    await refreshCatalog(true);
+    await vi.runAllTimersAsync();
+
+    expect(catalog.list.length).toBeGreaterThanOrEqual(3);
+    expect(catalog.list.every((m) => m.provider === 'anthropic' && m.qualifiedId.startsWith('anthropic:'))).toBe(true);
+  });
+
+  // -------------------------------------------------------------------------
   // C4: TTL — a second refreshCatalog(false) within 1 hour is a no-op
   // -------------------------------------------------------------------------
   it('skips fetch on second call within TTL when force=false', async () => {

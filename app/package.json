@@ -37,6 +37,7 @@
     "vitest": "^2.1.4"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "3.0.71",
     "@openrouter/ai-sdk-provider": "2.8.0",
     "ai": "6.0.168",
     "gpt-tokenizer": "^2.9.0"
