@@ -197,7 +197,7 @@
   </div>
 
   <!-- Body -->
-  <div class="flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-4 cryptex-scroll">
+  <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4 cryptex-scroll">
     <!-- Presets -->
     <PresetPicker isDirty={chainDirty} onApply={applyPreset} />
 

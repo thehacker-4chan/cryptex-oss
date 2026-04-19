@@ -65,12 +65,9 @@
   });
 </script>
 
-<div
-  class="grid h-full"
-  style:grid-template-columns={attackChainOpen ? 'minmax(0,1fr) 440px' : 'minmax(0,1fr)'}
->
-  <div class="fade-in flex h-full min-w-0 flex-col gap-2">
-    <ChatHeader {chat} />
+<div class="flex h-full w-full min-h-0 overflow-hidden">
+  <div class="fade-in flex h-full min-w-0 min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+    <ChatHeader {chat} {attackChainOpen} />
     <MessageList bind:this={messageListEl} {chat} {messages} />
 
     {#if streaming}

@@ -58,15 +58,14 @@
     </span>
 
     <select
-      value={value}
       onchange={(e) => onChange((e.currentTarget as HTMLSelectElement).value)}
       class="min-w-0 flex-1 rounded border border-border/40 bg-background px-2 py-1 text-xs text-foreground outline-none focus:border-primary/50"
     >
-      <option value="" disabled>— pick technique —</option>
+      <option value="" disabled selected={!value}>— pick technique —</option>
       {#each Object.entries(grouped()) as [cat, items] (cat)}
         <optgroup label={CATEGORY_LABELS[cat] ?? cat}>
           {#each items as t (t.id)}
-            <option value={t.id}>{t.name}</option>
+            <option value={t.id} selected={t.id === value}>{t.name}</option>
           {/each}
         </optgroup>
       {/each}

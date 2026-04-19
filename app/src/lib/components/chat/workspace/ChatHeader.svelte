@@ -9,8 +9,8 @@
   import Zap from 'lucide-svelte/icons/zap';
   import { lastChatModel } from '$lib/stores/lastChatModel.svelte';
 
-  type Props = { chat: ChatRow };
-  let { chat }: Props = $props();
+  type Props = { chat: ChatRow; attackChainOpen?: boolean };
+  let { chat, attackChainOpen = false }: Props = $props();
 
   let title = $state(chat.title);
   let titleInput = $state<HTMLInputElement | null>(null);
@@ -66,8 +66,11 @@
     type="button"
     onclick={() => window.dispatchEvent(new CustomEvent('chat:open-attack-chain'))}
     aria-label="Attack Chain"
+    aria-pressed={attackChainOpen}
     title="Attack Chain — compose layered techniques"
-    class="inline-flex h-7 items-center gap-1 rounded border border-primary/40 bg-primary/10 px-2 text-xs text-primary hover:bg-primary/20 transition-colors"
+    class={attackChainOpen
+      ? 'inline-flex h-7 items-center gap-1 rounded border border-primary/70 bg-primary/30 px-2 text-xs text-primary ring-1 ring-primary/50 shadow-sm transition-colors'
+      : 'inline-flex h-7 items-center gap-1 rounded border border-primary/40 bg-primary/10 px-2 text-xs text-primary hover:bg-primary/20 transition-colors'}
   >
     <Zap size={11} /> Chain
   </button>
