@@ -160,6 +160,47 @@ export async function* runChain(
 
       const finalPrompt = buildLayerPrompt(attemptId, current, meta) ?? undefined;
 
+      // --- FAST PATH: local template ---------------------------------------
+      // If the technique declares a `localTemplate`, the layer is a pure
+      // deterministic string transformation. No LLM call, no refusal
+      // detection, no retry — just compute and yield. This is the fix for
+      // the "every layer might refuse" drift: templatable layers can't
+      // refuse because they never ask the model anything.
+      if (typeof t.localTemplate === 'function') {
+        try {
+          const output = t.localTemplate(current, meta);
+          yield {
+            layerIndex: i,
+            attempt: a,
+            techniqueId: attemptId,
+            techniqueName: t.name,
+            input: current,
+            output,
+            startedAt,
+            durationMs: Date.now() - startedAt,
+            finalPrompt
+          };
+          current = output;
+          layerResolved = true;
+          break;
+        } catch (err) {
+          yield {
+            layerIndex: i,
+            attempt: a,
+            techniqueId: attemptId,
+            techniqueName: t.name,
+            input: current,
+            output: '',
+            startedAt,
+            durationMs: Date.now() - startedAt,
+            error: (err as Error).message,
+            finalPrompt
+          };
+          if (!retryEnabled || a >= attempts.length - 1) return;
+          continue;
+        }
+      }
+
       try {
         const r = await t.apply(current, layerCtx);
         const refusal = detectRefusal(r.output);

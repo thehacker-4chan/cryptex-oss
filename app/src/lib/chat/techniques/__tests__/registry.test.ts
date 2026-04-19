@@ -68,9 +68,19 @@ describe('technique registry', () => {
     expect(t.every(x => x.local === true)).toBe(true);
   });
 
-  it('all mutate techniques have local=false', () => {
+  it('templatable mutate techniques have local=true and expose localTemplate; generative ones have local=false', () => {
     const m = byCategory('mutate');
-    expect(m.every(x => x.local === false)).toBe(true);
+    // Genuinely LLM-generative — no local string transformation available.
+    const generative = new Set(['rephrase', 'obfuscate', 'multilingual', 'crescendo']);
+    for (const tech of m) {
+      if (generative.has(tech.id)) {
+        expect(tech.local).toBe(false);
+        expect(tech.localTemplate).toBeUndefined();
+      } else {
+        expect(tech.local).toBe(true);
+        expect(tech.localTemplate).toBeTypeOf('function');
+      }
+    }
   });
 
   it('all classifier techniques have local=false', () => {

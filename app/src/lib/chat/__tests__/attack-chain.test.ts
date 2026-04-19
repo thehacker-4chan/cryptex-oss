@@ -13,6 +13,7 @@ type MockTechnique = {
   category: 'mutate';
   local: boolean;
   apply: (input: string, ctx: TechniqueContext) => Promise<{ output: string; metadata?: Record<string, unknown> }>;
+  localTemplate?: (input: string, metadata: Record<string, unknown>) => string;
   icon?: undefined;
 };
 
@@ -328,6 +329,119 @@ describe('runChain refusal retry', () => {
     expect(rows[0].error).toBeUndefined();
 
     delete REGISTRY['refuser'];
+  });
+});
+
+describe('runChain localTemplate fast path', () => {
+  it('local-template technique produces deterministic output without invoking callLLM', async () => {
+    const tmpl: MockTechnique & { localTemplate: (input: string, meta: Record<string, unknown>) => string } = {
+      id: 'tmpl_wrap',
+      name: 'Template wrap',
+      description: '',
+      category: 'mutate',
+      local: true,
+      localTemplate: (input) => `[WRAPPED]${input}[/WRAPPED]`,
+      apply: async (input) => ({ output: `[WRAPPED]${input}[/WRAPPED]` })
+    };
+    REGISTRY['tmpl_wrap'] = tmpl;
+
+    const llmSpy = vi.fn(async () => 'SHOULD_NOT_BE_CALLED');
+    const signal = new AbortController().signal;
+    const ctx = makeCtx({ callLLM: llmSpy });
+
+    const rows = await collect(runChain('ask', ['tmpl_wrap'], [{}], ctx, signal));
+    expect(rows).toHaveLength(1);
+    expect(rows[0].output).toBe('[WRAPPED]ask[/WRAPPED]');
+    expect(rows[0].error).toBeUndefined();
+    expect(llmSpy).not.toHaveBeenCalled();
+
+    delete REGISTRY['tmpl_wrap'];
+  });
+
+  it('chain of 4 local templates invokes callLLM zero times', async () => {
+    const mkLocal = (id: string, prefix: string): MockTechnique & { localTemplate: (input: string, meta: Record<string, unknown>) => string } => ({
+      id,
+      name: id,
+      description: '',
+      category: 'mutate',
+      local: true,
+      localTemplate: (input) => `${prefix}:${input}`,
+      apply: async (input) => ({ output: `${prefix}:${input}` })
+    });
+    REGISTRY['l1'] = mkLocal('l1', 'L1');
+    REGISTRY['l2'] = mkLocal('l2', 'L2');
+    REGISTRY['l3'] = mkLocal('l3', 'L3');
+    REGISTRY['l4'] = mkLocal('l4', 'L4');
+
+    const llmSpy = vi.fn(async () => 'NOPE');
+    const signal = new AbortController().signal;
+    const ctx = makeCtx({ callLLM: llmSpy });
+
+    const rows = await collect(
+      runChain('seed', ['l1', 'l2', 'l3', 'l4'], [{}, {}, {}, {}], ctx, signal)
+    );
+    expect(rows).toHaveLength(4);
+    expect(rows[3].output).toBe('L4:L3:L2:L1:seed');
+    expect(llmSpy).not.toHaveBeenCalled();
+
+    delete REGISTRY['l1'];
+    delete REGISTRY['l2'];
+    delete REGISTRY['l3'];
+    delete REGISTRY['l4'];
+  });
+
+  it('mixed chain (local + LLM) invokes callLLM only on the LLM layer; metadata flows through local templates', async () => {
+    const captured: Array<Record<string, unknown>> = [];
+    const localPersona: MockTechnique & { localTemplate: (input: string, meta: Record<string, unknown>) => string } = {
+      id: 'local_persona',
+      name: 'Local persona',
+      description: '',
+      category: 'mutate',
+      local: true,
+      localTemplate: (input, meta) => {
+        captured.push(meta);
+        const persona = (meta.persona as string) ?? 'default';
+        return `[${persona}] ${input}`;
+      },
+      apply: async (input, ctx) => ({ output: `[${(ctx.metadata?.persona as string) ?? 'default'}] ${input}` })
+    };
+    const llmTech: MockTechnique = {
+      id: 'llm_step',
+      name: 'LLM step',
+      description: '',
+      category: 'mutate',
+      local: false,
+      apply: async (input, ctx) => {
+        const out = await ctx.callLLM({ user: input });
+        return { output: out };
+      }
+    };
+    REGISTRY['local_persona'] = localPersona;
+    REGISTRY['llm_step'] = llmTech;
+
+    const llmSpy = vi.fn(async (req: { system?: string; user: string }) => `LLM[${req.user}]`);
+    const signal = new AbortController().signal;
+    const ctx = makeCtx({ callLLM: llmSpy });
+
+    const rows = await collect(
+      runChain(
+        'ask',
+        ['local_persona', 'llm_step'],
+        [{ persona: 'Dr. K' }, {}],
+        ctx,
+        signal
+      )
+    );
+
+    expect(rows).toHaveLength(2);
+    expect(rows[0].output).toBe('[Dr. K] ask');
+    expect(rows[1].output).toBe('LLM[[Dr. K] ask]');
+    expect(llmSpy).toHaveBeenCalledTimes(1);
+    expect(captured).toHaveLength(1);
+    expect(captured[0]).toMatchObject({ persona: 'Dr. K' });
+
+    delete REGISTRY['local_persona'];
+    delete REGISTRY['llm_step'];
   });
 });
 
