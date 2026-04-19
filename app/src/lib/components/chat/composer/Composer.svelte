@@ -66,13 +66,14 @@
   const MAX_FILE_BYTES = 25 * 1024 * 1024;   // 25 MB per file
   const MAX_MSG_BYTES  = 50 * 1024 * 1024;   // 50 MB per message
 
-  // Only mutator-category techniques are slash-completable
+  // Slash-completable: all mutator + composite techniques, plus the BTW utility.
   const mutators = byCategory('mutate');
+  const composites = byCategory('composite');
 
   // Synthetic slash entries (not registered Techniques)
-  type SlashEntry = { id: string; name: string; description: string; icon?: string };
+  type SlashEntry = { id: string; name: string; description: string; icon?: string; group?: string };
 
-  const BTW_ENTRY: SlashEntry = { id: 'btw', name: 'btw', description: 'Side question, no chat history', icon: '💬' };
+  const BTW_ENTRY: SlashEntry = { id: 'btw', name: 'btw', description: 'Side question, no chat history', icon: '*', group: 'Utility' };
 
   // Slash autocomplete: only trigger when draft starts with / and has no space yet
   const slashQuery = $derived(() => {
@@ -80,15 +81,26 @@
     return m ? m[1] : null;
   });
 
+  function toSlashEntries(list: Technique[], group: string): SlashEntry[] {
+    return list.map((t) => ({ id: t.id, name: t.name, description: t.description, group }));
+  }
+
   const suggestions = $derived((): SlashEntry[] => {
     const q = slashQuery();
     if (q === null) return [];
     const lower = q.toLowerCase();
-    const mutatorEntries: SlashEntry[] = mutators.filter(
+
+    const mutatorEntries = toSlashEntries(mutators, 'Mutators');
+    const compositeEntries = toSlashEntries(composites, 'Composites');
+    const allEntries: SlashEntry[] = [BTW_ENTRY, ...mutatorEntries, ...compositeEntries];
+
+    // Empty query after `/` — show all techniques (BTW first).
+    if (!lower) return allEntries;
+
+    // Otherwise filter by prefix/substring on id and name.
+    return allEntries.filter(
       (t) => t.id.startsWith(lower) || t.name.toLowerCase().includes(lower)
     );
-    const btwMatches = BTW_ENTRY.id.startsWith(lower) || BTW_ENTRY.name.includes(lower);
-    return btwMatches ? [BTW_ENTRY, ...mutatorEntries] : mutatorEntries;
   });
 
   // Reset selection when suggestions change
@@ -276,6 +288,7 @@
     suggestions={suggestions()}
     selectedIndex={suggestionIndex}
     onSelect={completeSuggestion}
+    query={slashQuery() ?? ''}
   />
 
   <AttachmentChips items={pending} onRemove={removeAttachment} />

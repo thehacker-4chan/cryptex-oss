@@ -1,15 +1,16 @@
 <script lang="ts">
-  import { STRATEGIES, getSystemPrompt } from './strategies';
+  import { getSystemPrompt, listPromptCraftTechniques } from './strategies';
   import { tuneParams } from '$lib/ai/prompt-scaffold';
   import { chat, hasAnyKey as hasApiKey } from '$lib/ai/gateway';
   import { GatewayError as OpenRouterError } from '$lib/ai/types';
   import ModelPickerV2 from '$lib/components/ai/ModelPickerV2.svelte';
+  import { Combobox } from '$lib/components/ui/combobox';
+  import type { ComboboxOption } from '$lib/components/ui/combobox';
   import { createPersistedState } from '$lib/stores/_persisted.svelte';
   import { base } from '$app/paths';
   import { goto } from '$app/navigation';
   import { notify } from '$lib/stores/toast.svelte';
   import { sessionLog } from '$lib/stores/sessionLog.svelte';
-  import { cn } from '$lib/utils/cn';
   import Sparkles from 'lucide-svelte/icons/sparkles';
   import Copy from 'lucide-svelte/icons/copy';
   import Loader from 'lucide-svelte/icons/loader-circle';
@@ -18,6 +19,15 @@
   import { promptcraftState } from './promptcraft.state.svelte';
   import ErrorBanner from '$lib/components/ai/ErrorBanner.svelte';
   import { GatewayError } from '$lib/ai/types';
+
+  // All eligible techniques (mutators + composites) keyed to Combobox options.
+  const techniques = listPromptCraftTechniques();
+  const techniqueOptions: ComboboxOption[] = techniques.map((t) => ({
+    id: t.id,
+    label: t.name,
+    description: t.desc,
+    group: t.group
+  }));
 
   const modelPref = createPersistedState<string>('cryptex.pc.model', 'openrouter:openrouter/auto');
 
@@ -121,8 +131,8 @@
       PromptCraft
     </h1>
     <p class="text-muted-foreground max-w-2xl text-sm sm:text-base">
-      Nine mutation strategies across the full OpenRouter catalog. Generate multiple variants
-      in parallel with adjustable temperature. Requires an OpenRouter API key.
+      The full registry of mutator and composite techniques, searchable. Generate multiple
+      variants in parallel with adjustable temperature. Requires a configured provider.
     </p>
   </header>
 
@@ -139,24 +149,13 @@
   <div class="grid gap-4 lg:grid-cols-[320px_1fr]">
     <!-- Strategies + Model -->
     <div class="space-y-3 rounded-xl border border-border bg-card/60 p-4 shadow-glass">
-      <h2 class="font-serif text-sm">Strategy</h2>
-      <div class="space-y-1">
-        {#each STRATEGIES as strat (strat.id)}
-          <button
-            type="button"
-            onclick={() => (s.strategy = strat.id)}
-            class={cn(
-              'w-full text-left rounded-md border px-2.5 py-1.5 text-xs transition-colors',
-              s.strategy === strat.id
-                ? 'border-primary/40 bg-primary/5'
-                : 'border-border/50 bg-background/40 hover:border-primary/30'
-            )}
-          >
-            <div class="font-medium">{strat.name}</div>
-            <div class="text-[11px] text-muted-foreground">{strat.desc}</div>
-          </button>
-        {/each}
-      </div>
+      <h2 class="font-serif text-sm">Technique</h2>
+      <Combobox
+        value={s.strategy}
+        options={techniqueOptions}
+        placeholder="Search techniques..."
+        onChange={(id) => (s.strategy = id)}
+      />
 
       {#if s.strategy === 'custom'}
         <label class="block space-y-1">

@@ -1,11 +1,15 @@
 /**
  * Module-level state for the PromptCraft tool. Survives tab switches.
  * Loading/error flags remain component-local.
+ *
+ * Note: `strategy` is now loosely typed as string (any registry technique id)
+ * now that PromptCraft picks from the full mutator+composite set via the
+ * Combobox. The legacy `StrategyId` union has been deprecated in strategies.ts
+ * but is re-exported for any downstream caller that still imports it.
  */
-import type { StrategyId } from './strategies';
 
 let input = $state('');
-let strategy = $state<StrategyId>('rephrase');
+let strategy = $state<string>('rephrase');
 let customInstruction = $state('');
 let count = $state(3);
 let outputs = $state<string[]>([]);
@@ -15,7 +19,7 @@ export const promptcraftState = {
   set input(v: string) { input = v; },
 
   get strategy() { return strategy; },
-  set strategy(v: StrategyId) { strategy = v; },
+  set strategy(v: string) { strategy = v; },
 
   get customInstruction() { return customInstruction; },
   set customInstruction(v: string) { customInstruction = v; },

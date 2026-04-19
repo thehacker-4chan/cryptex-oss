@@ -24,6 +24,9 @@ export function allTechniques(): Technique[] {
   return _all;
 }
 
+/** Alias of allTechniques() for API clarity at pickers / search UIs. */
+export { allTechniques as listAll };
+
 export function byCategory(cat: TechniqueCategory): Technique[] {
   return allTechniques().filter((t) => t.category === cat);
 }
@@ -36,6 +39,7 @@ export function search(query: string): Technique[] {
   const q = query.toLowerCase().trim();
   if (!q) return allTechniques();
   return allTechniques().filter((t) =>
+    t.id.toLowerCase().includes(q) ||
     t.name.toLowerCase().includes(q) ||
     t.description.toLowerCase().includes(q) ||
     t.category.toLowerCase().includes(q)
