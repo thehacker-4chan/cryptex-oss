@@ -176,6 +176,13 @@
     <ReasoningBlock text={message.reasoning} {live} />
   {/if}
 
+  {#if isAssistant && !live && message.finishReason === 'length'}
+    <div class="mb-2 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-700 dark:text-amber-400">
+      <Info size={11} class="mt-0.5 shrink-0" />
+      <span>Response truncated at the model's output-token limit. Ask the model to continue or raise Max tokens in chat settings.</span>
+    </div>
+  {/if}
+
   {#if message.toolCalls}
     {#each message.toolCalls as call (call.toolCallId)}
       <ToolCallCard {call} />
