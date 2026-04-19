@@ -25,7 +25,19 @@
   let { message, chat, live = false }: Props = $props();
 
   let copied = $state(false);
+  let continuing = $state(false);
   let attachments = $state<AttachmentRow[]>([]);
+
+  function handleContinue() {
+    if (continuing) return;
+    continuing = true;
+    window.dispatchEvent(
+      new CustomEvent('chat:continue-message', { detail: { messageId: message.id } })
+    );
+    // Reset after a short delay so the button can be clicked again if the
+    // continuation itself truncates. ChatWorkspace handles the actual stream.
+    setTimeout(() => { continuing = false; }, 3000);
+  }
 
   $effect(() => {
     if (message.attachmentIds && message.attachmentIds.length > 0) {
@@ -76,6 +88,11 @@
   const isAssistant = $derived(message.role === 'assistant');
   const isTool      = $derived(message.role === 'tool');
   const isSystem    = $derived(message.role === 'system');
+
+  const showTruncationBanner = $derived(
+    isAssistant && !live && message.id !== 'streaming' &&
+    (message.truncated === true || message.finishReason === 'length')
+  );
 
   // Modes that wrap messages without producing a slash-style mutation preview.
   // Any other modeApplied value that is a registered technique OR 'btw' renders
@@ -176,10 +193,20 @@
     <ReasoningBlock text={message.reasoning} {live} />
   {/if}
 
-  {#if isAssistant && !live && message.finishReason === 'length'}
+  {#if showTruncationBanner}
     <div class="mb-2 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-[11px] text-amber-700 dark:text-amber-400">
       <Info size={11} class="mt-0.5 shrink-0" />
-      <span>Response truncated at the model's output-token limit. Ask the model to continue or raise Max tokens in chat settings.</span>
+      <div class="flex flex-1 flex-wrap items-center gap-2">
+        <span>Response truncated at the model's output-token limit.</span>
+        <button
+          type="button"
+          onclick={handleContinue}
+          disabled={continuing}
+          class="rounded border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium hover:bg-amber-500/20 disabled:opacity-50"
+        >
+          {continuing ? 'Continuing...' : 'Continue'}
+        </button>
+      </div>
     </div>
   {/if}
 

@@ -74,7 +74,7 @@ export async function sendTurn(
       messages: providerMessages,
       temperature: chat.settings.temperature,
       topP: chat.settings.topP,
-      maxOutputTokens: chat.settings.maxTokens,
+      maxOutputTokens: chat.settings.maxTokens ?? 4096,
       providerOptions: { anthropic: { cacheControl: { type: 'ephemeral' } } },
       signal
     };
@@ -113,6 +113,7 @@ export async function sendTurn(
       },
       tokenUsage: finalUsage,
       finishReason: finalFinishReason,
+      truncated: finalFinishReason === 'length',
       latencyMs: Date.now() - startedAt,
       tags: []
     });
@@ -207,7 +208,7 @@ export async function sendTurn(
           messages: providerMessages,
           temperature: chat.settings.temperature,
           topP: chat.settings.topP,
-          maxOutputTokens: chat.settings.maxTokens,
+          maxOutputTokens: chat.settings.maxTokens ?? 4096,
           tools,
           providerOptions: { anthropic: { cacheControl: { type: 'ephemeral' } } },
           signal
@@ -247,6 +248,7 @@ export async function sendTurn(
           },
           tokenUsage: finalUsage,
           finishReason: finalFinishReason,
+          truncated: finalFinishReason === 'length',
           latencyMs: Date.now() - startedAt,
           tags: []
         });
@@ -313,7 +315,7 @@ export async function sendTurn(
     messages: providerMessages,
     temperature: chat.settings.temperature,
     topP: chat.settings.topP,
-    maxOutputTokens: chat.settings.maxTokens,
+    maxOutputTokens: chat.settings.maxTokens ?? 4096,
     tools,
     providerOptions: {
       anthropic: { cacheControl: { type: 'ephemeral' } }
@@ -440,6 +442,7 @@ export async function sendTurn(
         },
         tokenUsage: finalUsage,
         finishReason: 'aborted',
+        truncated: false,
         latencyMs: Date.now() - startedAt,
         tags: []
       });
@@ -469,10 +472,110 @@ export async function sendTurn(
     },
     tokenUsage: finalUsage,
     finishReason: finalFinishReason,
+    truncated: finalFinishReason === 'length',
     latencyMs: Date.now() - startedAt,
     tags: []
   });
 
+  hooks.onFinish?.(asstMsg);
+}
+
+/**
+ * Continue a truncated assistant response. Loads history up through the
+ * truncated assistant message, appends a literal "continue from exactly where
+ * you stopped" user instruction, streams the continuation as a NEW assistant
+ * message. Two rows render together as a single continuous answer. The new
+ * assistant message carries its own finishReason/truncated so the Continue
+ * banner can re-appear if the model truncates again.
+ *
+ * Does not persist the synthetic "continue" user message — it's only sent to
+ * the provider.
+ */
+export async function continueAssistantMessage(
+  chat: ChatRow,
+  truncatedMessageId: string,
+  signal: AbortSignal,
+  hooks: Hooks = {}
+): Promise<void> {
+  const history = await repo.listMessages(chat.id);
+  const idx = history.findIndex((m) => m.id === truncatedMessageId);
+  if (idx === -1) {
+    hooks.onError?.(new Error('Truncated message not found in history'));
+    return;
+  }
+  const truncated = history[idx];
+  if (truncated.role !== 'assistant') {
+    hooks.onError?.(new Error('continueAssistantMessage requires an assistant message'));
+    return;
+  }
+
+  const upTo = history.slice(0, idx + 1);
+  const providerMessages: ChatMessage[] = [];
+  if (chat.settings.systemPrompt.trim()) {
+    providerMessages.push({ role: 'system', content: chat.settings.systemPrompt });
+  }
+  for (const m of upTo) {
+    if (m.role === 'system' || m.role === 'user' || m.role === 'assistant') {
+      providerMessages.push({ role: m.role, content: m.content });
+    }
+  }
+  providerMessages.push({
+    role: 'user',
+    content: 'Continue from exactly where you stopped. Do not repeat any text. Output the remaining content only.'
+  });
+
+  const req: ChatRequest = {
+    model: chat.modelQualifiedId,
+    messages: providerMessages,
+    temperature: chat.settings.temperature,
+    topP: chat.settings.topP,
+    maxOutputTokens: chat.settings.maxTokens ?? 4096,
+    providerOptions: { anthropic: { cacheControl: { type: 'ephemeral' } } },
+    signal
+  };
+
+  const startedAt = Date.now();
+  let accText = '';
+  let accReasoning = '';
+  let finalUsage: MessageRow['tokenUsage'];
+  let finalFinishReason: string | undefined;
+
+  try {
+    for await (const evt of streamChat(req)) {
+      if (evt.type === 'text-delta') { accText += evt.delta; hooks.onTextDelta?.(evt.delta); }
+      else if (evt.type === 'reasoning-delta') { accReasoning += evt.delta; hooks.onReasoningDelta?.(evt.delta); }
+      else if (evt.type === 'finish') { finalFinishReason = evt.finishReason; finalUsage = evt.usage as MessageRow['tokenUsage']; }
+    }
+  } catch (err) {
+    hooks.onError?.(err as Error);
+    return;
+  }
+
+  // Mark the prior truncated message as no-longer-banner-worthy so the user
+  // only sees a single Continue affordance on the tail of the stitched reply.
+  await repo.updateMessage(truncated.id, { truncated: false });
+
+  const asstMsg = await repo.saveMessage({
+    chatId: chat.id,
+    role: 'assistant',
+    parentId: truncated.id,
+    content: accText,
+    reasoning: accReasoning || undefined,
+    modelRequested: chat.modelQualifiedId,
+    systemPromptSnapshot: chat.settings.systemPrompt,
+    samplingParams: {
+      temperature: chat.settings.temperature,
+      topP: chat.settings.topP,
+      maxTokens: chat.settings.maxTokens,
+      reasoningEffort: chat.settings.reasoningEffort,
+      thinkingLevel: chat.settings.thinkingLevel
+    },
+    tokenUsage: finalUsage,
+    finishReason: finalFinishReason,
+    truncated: finalFinishReason === 'length',
+    latencyMs: Date.now() - startedAt,
+    tags: ['continuation']
+  });
   hooks.onFinish?.(asstMsg);
 }
 

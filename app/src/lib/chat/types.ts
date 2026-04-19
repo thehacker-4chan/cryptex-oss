@@ -81,6 +81,7 @@ export interface MessageRow {
   modeApplied?: string | null;
   tokenUsage?: TokenUsage;
   finishReason?: string;
+  truncated?: boolean;
   latencyMs?: number;
   costUsd?: number;
   rating?: 1 | 2 | 3 | 4 | 5;

@@ -1,9 +1,9 @@
 <script lang="ts">
   import type { ChatRow, MessageRow } from '$lib/chat/types';
   import { repo } from '$lib/chat/repo';
+  import { continueAssistantMessage } from '$lib/chat/dispatch';
   import ChatHeader from './ChatHeader.svelte';
   import MessageList from './MessageList.svelte';
-  import MessageBubble from './MessageBubble.svelte';
   import Composer from '../composer/Composer.svelte';
   import AttackChainSidebar from '../attack-chain/AttackChainSidebar.svelte';
   import NoProviderBanner from '$lib/components/ai/NoProviderBanner.svelte';
@@ -59,10 +59,39 @@
   }
   function onReasoningDelta(delta: string) { streamingReasoning += delta; }
 
+  let continueCtrl = $state<AbortController | null>(null);
+
+  async function handleContinueMessage(messageId: string) {
+    if (streaming) return; // don't stack continuations over an in-flight stream
+    streaming = true;
+    continueCtrl = new AbortController();
+    try {
+      await continueAssistantMessage(chat, messageId, continueCtrl.signal, {
+        onTextDelta,
+        onReasoningDelta,
+        onFinish: (msg) => onMessageAppended(msg),
+        onError: (err) => { console.error('[continue]', err); }
+      });
+    } finally {
+      streaming = false;
+      continueCtrl = null;
+    }
+  }
+
   onMount(() => {
     const handler = () => { attackChainOpen = !attackChainOpen; };
     window.addEventListener('chat:open-attack-chain', handler);
-    return () => window.removeEventListener('chat:open-attack-chain', handler);
+
+    const continueHandler = (e: Event) => {
+      const id = (e as CustomEvent<{ messageId: string }>).detail?.messageId;
+      if (typeof id === 'string') void handleContinueMessage(id);
+    };
+    window.addEventListener('chat:continue-message', continueHandler);
+
+    return () => {
+      window.removeEventListener('chat:open-attack-chain', handler);
+      window.removeEventListener('chat:continue-message', continueHandler);
+    };
   });
 </script>
 
@@ -70,24 +99,14 @@
   <div class="fade-in flex h-full min-w-0 min-h-0 flex-1 flex-col gap-2 overflow-hidden">
     <ChatHeader {chat} {attackChainOpen} />
     <div class="px-3 pt-1"><NoProviderBanner context="chat" compact={true} /></div>
-    <MessageList bind:this={messageListEl} {chat} {messages} />
-
-    {#if streaming}
-      <MessageBubble
-        {chat}
-        message={{
-          id: 'streaming',
-          ownerId: 'local',
-          chatId: chat.id,
-          role: 'assistant',
-          createdAt: Date.now(),
-          content: streamingContent,
-          reasoning: streamingReasoning || undefined,
-          tags: []
-        } as MessageRow}
-        live={true}
-      />
-    {/if}
+    <MessageList
+      bind:this={messageListEl}
+      {chat}
+      {messages}
+      {streaming}
+      {streamingContent}
+      {streamingReasoning}
+    />
 
     <Composer
       {chat}

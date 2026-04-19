@@ -3,8 +3,20 @@
   import MessageBubble from './MessageBubble.svelte';
   import { tick } from 'svelte';
 
-  type Props = { chat: ChatRow; messages: MessageRow[] };
-  let { chat, messages }: Props = $props();
+  type Props = {
+    chat: ChatRow;
+    messages: MessageRow[];
+    streaming?: boolean;
+    streamingContent?: string;
+    streamingReasoning?: string;
+  };
+  let {
+    chat,
+    messages,
+    streaming = false,
+    streamingContent = '',
+    streamingReasoning = ''
+  }: Props = $props();
 
   let scrollEl = $state<HTMLElement | null>(null);
 
@@ -27,6 +39,17 @@
     const distance = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight;
     if (distance < threshold) scrollEl.scrollTo({ top: scrollEl.scrollHeight, behavior: 'smooth' });
   }
+
+  const streamingMessage = $derived<MessageRow>({
+    id: 'streaming',
+    ownerId: 'local',
+    chatId: chat.id,
+    role: 'assistant',
+    createdAt: Date.now(),
+    content: streamingContent,
+    reasoning: streamingReasoning || undefined,
+    tags: []
+  } as MessageRow);
 </script>
 
 <div
@@ -38,4 +61,7 @@
   {#each messages as msg (msg.id)}
     <MessageBubble message={msg} {chat} />
   {/each}
+  {#if streaming}
+    <MessageBubble message={streamingMessage} {chat} live={true} />
+  {/if}
 </div>

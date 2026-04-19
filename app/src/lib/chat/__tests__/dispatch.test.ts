@@ -48,4 +48,73 @@ describe('sendTurn slash path', () => {
     expect(gatewayCalled).toBe(true);
     expect(streamCalled).toBe(true);
   });
+
+  it('sendTurn flags assistant message as truncated when finishReason === length', async () => {
+    vi.doMock('$lib/ai/gateway', () => ({
+      streamChat: async function* () {
+        yield { type: 'text-delta', delta: 'partial reply' };
+        yield { type: 'finish', finishReason: 'length', usage: { inputTokens: 1, outputTokens: 1 } };
+      },
+      chat: async () => ({ content: '' })
+    }));
+    const { sendTurn } = await import('../dispatch');
+    const { repo } = await import('../repo');
+    const chat = await repo.createChat({ title: 't', modelQualifiedId: 'x' });
+    await sendTurn(chat, 'hello', new AbortController().signal);
+    const msgs = await repo.listMessages(chat.id);
+    const asst = msgs.find((m) => m.role === 'assistant');
+    expect(asst).toBeTruthy();
+    expect(asst!.finishReason).toBe('length');
+    expect(asst!.truncated).toBe(true);
+  });
+});
+
+describe('continueAssistantMessage', () => {
+  it('is exported with the expected signature', async () => {
+    vi.doMock('$lib/ai/gateway', () => ({
+      streamChat: async function* () {
+        yield { type: 'text-delta', delta: 'continued' };
+        yield { type: 'finish', finishReason: 'stop', usage: { inputTokens: 1, outputTokens: 1 } };
+      },
+      chat: async () => ({ content: '' })
+    }));
+    const mod = await import('../dispatch');
+    expect(typeof mod.continueAssistantMessage).toBe('function');
+    // Function should accept (chat, messageId, signal, hooks?) — length reflects required params.
+    expect(mod.continueAssistantMessage.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('streams a continuation, appends a new assistant row, and clears truncated flag on prior message', async () => {
+    vi.doMock('$lib/ai/gateway', () => ({
+      streamChat: async function* () {
+        yield { type: 'text-delta', delta: 'rest of the reply' };
+        yield { type: 'finish', finishReason: 'stop', usage: { inputTokens: 1, outputTokens: 2 } };
+      },
+      chat: async () => ({ content: '' })
+    }));
+    const { continueAssistantMessage } = await import('../dispatch');
+    const { repo } = await import('../repo');
+    const chat = await repo.createChat({ title: 't', modelQualifiedId: 'x' });
+    await repo.saveMessage({ chatId: chat.id, role: 'user', content: 'give me a long essay', tags: [] });
+    const truncated = await repo.saveMessage({
+      chatId: chat.id,
+      role: 'assistant',
+      content: 'partial reply that ended mid-sentence',
+      finishReason: 'length',
+      truncated: true,
+      tags: []
+    });
+
+    await continueAssistantMessage(chat, truncated.id, new AbortController().signal);
+
+    const msgs = await repo.listMessages(chat.id);
+    const asst = msgs.filter((m) => m.role === 'assistant');
+    expect(asst.length).toBe(2);
+    const prior = asst.find((m) => m.id === truncated.id);
+    const cont = asst.find((m) => m.id !== truncated.id);
+    expect(prior!.truncated).toBe(false);
+    expect(cont!.content).toBe('rest of the reply');
+    expect(cont!.finishReason).toBe('stop');
+    expect(cont!.truncated).toBe(false);
+  });
 });
