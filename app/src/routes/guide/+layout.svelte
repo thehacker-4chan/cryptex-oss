@@ -43,7 +43,7 @@
   <aside class="hidden md:block">
     <nav
       aria-label="Guide sections"
-      class="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto pr-2"
+      class="cryptex-scroll sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto pr-2"
     >
       <div class="space-y-6">
         {#each groups as group (group.category)}
