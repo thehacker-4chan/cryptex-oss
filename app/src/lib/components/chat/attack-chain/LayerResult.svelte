@@ -1,0 +1,65 @@
+<script lang="ts">
+  import type { LayerResultRow } from '$lib/chat/attack-chain';
+  import Copy from 'lucide-svelte/icons/copy';
+  import Check from 'lucide-svelte/icons/check';
+  import AlertCircle from 'lucide-svelte/icons/circle-alert';
+
+  type Props = { row: LayerResultRow };
+  let { row }: Props = $props();
+
+  let copied = $state(false);
+
+  async function copy() {
+    await navigator.clipboard.writeText(row.output);
+    copied = true;
+    setTimeout(() => { copied = false; }, 1500);
+  }
+
+  function formatMs(ms: number): string {
+    return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
+  }
+
+  function formatTime(ts: number): string {
+    return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+</script>
+
+<details open class="group rounded-md border border-border/50 bg-card">
+  <summary class="flex cursor-pointer select-none list-none items-center justify-between gap-2 px-3 py-2">
+    <div class="flex min-w-0 items-center gap-2">
+      <span class="shrink-0 text-[10px] font-semibold text-muted-foreground">
+        Layer {row.layerIndex + 1}
+      </span>
+      <span class="truncate text-xs font-medium text-foreground">{row.techniqueName}</span>
+      <code class="hidden shrink-0 text-[9px] text-muted-foreground sm:inline">{row.techniqueId}</code>
+    </div>
+    <div class="flex shrink-0 items-center gap-2">
+      <span class="text-[10px] text-muted-foreground">{formatTime(row.startedAt)} · {formatMs(row.durationMs)}</span>
+      {#if !row.error}
+        <button
+          type="button"
+          onclick={(e) => { e.preventDefault(); copy(); }}
+          aria-label="Copy layer {row.layerIndex + 1} output"
+          class="rounded p-1 text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+        >
+          {#if copied}
+            <Check size={12} class="text-green-500" />
+          {:else}
+            <Copy size={12} />
+          {/if}
+        </button>
+      {/if}
+    </div>
+  </summary>
+
+  <div class="border-t border-border/40 px-3 py-2">
+    {#if row.error}
+      <div class="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-2 text-xs text-destructive">
+        <AlertCircle size={13} class="mt-0.5 shrink-0" />
+        <span>{row.error}</span>
+      </div>
+    {:else}
+      <pre class="max-h-48 overflow-y-auto whitespace-pre-wrap text-xs text-foreground cryptex-scroll">{row.output}</pre>
+    {/if}
+  </div>
+</details>

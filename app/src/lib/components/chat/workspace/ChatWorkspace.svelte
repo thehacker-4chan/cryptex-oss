@@ -5,6 +5,8 @@
   import MessageList from './MessageList.svelte';
   import MessageBubble from './MessageBubble.svelte';
   import Composer from '../composer/Composer.svelte';
+  import AttackChainDialog from '../attack-chain/AttackChainDialog.svelte';
+  import { onMount } from 'svelte';
 
   type Props = { chat: ChatRow };
   let { chat }: Props = $props();
@@ -14,6 +16,7 @@
 
   let streamingContent = $state('');
   let streamingReasoning = $state('');
+  let attackChainOpen = $state(false);
 
   // Local activeMode state for instant pill feedback; DB write happens in setActiveMode.
   let activeMode = $state<string | null>(chat.settings.activeMode ?? null);
@@ -54,7 +57,20 @@
     messageListEl?.scrollToBottomIfPinned();
   }
   function onReasoningDelta(delta: string) { streamingReasoning += delta; }
+
+  onMount(() => {
+    const handler = () => { attackChainOpen = true; };
+    window.addEventListener('chat:open-attack-chain', handler);
+    return () => window.removeEventListener('chat:open-attack-chain', handler);
+  });
 </script>
+
+<AttackChainDialog
+  bind:open={attackChainOpen}
+  {chat}
+  onInsertToComposer={(text) =>
+    window.dispatchEvent(new CustomEvent('composer:insert', { detail: { text } }))}
+/>
 
 <div class="fade-in flex h-full flex-col gap-2">
   <ChatHeader {chat} />

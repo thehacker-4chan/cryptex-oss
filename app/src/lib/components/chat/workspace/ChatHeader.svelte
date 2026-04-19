@@ -6,6 +6,7 @@
   import ModelPickerV2 from '$lib/components/ai/ModelPickerV2.svelte';
   import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
   import EllipsisVertical from 'lucide-svelte/icons/ellipsis-vertical';
+  import Zap from 'lucide-svelte/icons/zap';
   import { lastChatModel } from '$lib/stores/lastChatModel.svelte';
 
   type Props = { chat: ChatRow };
@@ -61,6 +62,15 @@
     aria-label="Chat title"
   />
   <ModelPickerV2 value={chat.modelQualifiedId} onChange={onModelChange} recentsKey="cryptex.chat.recentModels" triggerClass="text-xs text-muted-foreground border border-border/40 rounded-full px-3 py-1 hover:border-border/70 hover:text-foreground transition-colors" />
+  <button
+    type="button"
+    onclick={() => window.dispatchEvent(new CustomEvent('chat:open-attack-chain'))}
+    aria-label="Attack Chain"
+    title="Attack Chain — compose layered techniques"
+    class="inline-flex h-7 items-center gap-1 rounded border border-primary/40 bg-primary/10 px-2 text-xs text-primary hover:bg-primary/20 transition-colors"
+  >
+    <Zap size={11} /> Chain
+  </button>
   <DropdownMenu.Root>
     <DropdownMenu.Trigger>
       {#snippet child({ props })}

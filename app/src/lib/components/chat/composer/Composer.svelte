@@ -43,9 +43,23 @@
     const attachHandler = () => fileInputEl?.click();
     window.addEventListener('chat:attach-file', attachHandler);
 
+    const insertHandler = (e: Event) => {
+      const text = (e as CustomEvent<{ text: string }>).detail?.text;
+      if (typeof text === 'string') {
+        draft = text;
+        if (textareaEl) {
+          textareaEl.style.height = 'auto';
+          textareaEl.style.height = Math.min(textareaEl.scrollHeight, 300) + 'px';
+          textareaEl.focus();
+        }
+      }
+    };
+    window.addEventListener('composer:insert', insertHandler);
+
     return () => {
       window.removeEventListener('chat:stop-stream', stopHandler);
       window.removeEventListener('chat:attach-file', attachHandler);
+      window.removeEventListener('composer:insert', insertHandler);
     };
   });
 
