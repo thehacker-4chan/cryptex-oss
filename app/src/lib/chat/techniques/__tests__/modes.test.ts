@@ -22,19 +22,27 @@ describe('modes wrap drafts deterministically', () => {
     expect(out).toContain('register');
   });
 
-  it('apply is identity — local template, no LLM call', async () => {
-    const r = await creative.apply('hi', noopCtx as never);
-    expect(r.output).toBe('hi');
+  it('creative apply calls ctx.callLLM with the wrapped system + raw user', async () => {
+    const calls: Array<{ system: string; user: string }> = [];
+    const ctx = { callLLM: async (r: { system: string; user: string }) => { calls.push(r); return 'LLM_OUT'; } };
+    const r = await creative.apply('hi', ctx as never);
+    expect(r.output).toBe('LLM_OUT');
+    expect(calls.length).toBe(1);
+    expect(calls[0].system).toContain('vivid');
+    expect(calls[0].system).not.toContain('User: hi');
+    expect(calls[0].user).toBe('hi');
   });
 
-  it('intelligent apply is identity', async () => {
-    const r = await intelligent.apply('test', noopCtx as never);
-    expect(r.output).toBe('test');
+  it('intelligent apply calls ctx.callLLM', async () => {
+    const ctx = { callLLM: async () => 'RESULT' };
+    const r = await intelligent.apply('test', ctx as never);
+    expect(r.output).toBe('RESULT');
   });
 
-  it('adaptive apply is identity', async () => {
-    const r = await adaptive.apply('test', noopCtx as never);
-    expect(r.output).toBe('test');
+  it('adaptive apply calls ctx.callLLM', async () => {
+    const ctx = { callLLM: async () => 'RESULT' };
+    const r = await adaptive.apply('test', ctx as never);
+    expect(r.output).toBe('RESULT');
   });
 
   it('all modes have local=true', () => {
