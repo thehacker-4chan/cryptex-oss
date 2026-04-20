@@ -109,6 +109,10 @@ export async function* runChain(
   // refusal once is unlikely to succeed on a similar input.
   const tried = new Set<string>();
 
+  // Captured once at pipeline entry. Threaded unchanged into every layer's
+  // ctx + localTemplate call so a layer N+1 can re-attach the user's
+  // verbatim intent even when layer N rewrote `current` beyond recognition.
+  const originalInput = input;
   let current = input;
 
   for (let i = 0; i < layerIds.length; i++) {
@@ -124,7 +128,7 @@ export async function* runChain(
     }
 
     const meta = { ...(ctx.metadata ?? {}), ...(layerMetadata[i] ?? {}) };
-    const layerCtx: TechniqueContext = { ...ctx, metadata: meta, signal };
+    const layerCtx: TechniqueContext = { ...ctx, originalInput, metadata: meta, signal };
 
     // Build the attempt sequence: primary first, then fallbacks that aren't
     // already tried elsewhere in the chain and aren't the primary itself.
@@ -168,7 +172,7 @@ export async function* runChain(
       // refuse because they never ask the model anything.
       if (typeof t.localTemplate === 'function') {
         try {
-          const output = t.localTemplate(current, meta);
+          const output = t.localTemplate(current, meta, originalInput);
           yield {
             layerIndex: i,
             attempt: a,

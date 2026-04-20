@@ -166,7 +166,7 @@ export async function sendTurn(
         // b) Apply mutator via LLM
         let rephrased = inputText;
         try {
-          const result = await t.apply(inputText, { callLLM, signal });
+          const result = await t.apply(inputText, { originalInput: inputText, callLLM, signal });
           rephrased = result.output;
         } catch (err) {
           hooks.onError?.(err as Error);
@@ -183,7 +183,7 @@ export async function sendTurn(
         if (modeId) {
           const mode = findTechnique(modeId);
           if (mode?.wrapDraft) {
-            content = await mode.wrapDraft(rephrased, { callLLM: async () => '', signal });
+            content = await mode.wrapDraft(rephrased, { originalInput: inputText, callLLM: async () => '', signal });
           }
         }
         // Keep modeApplied = slash technique id (set at save time); only update content.
@@ -269,7 +269,7 @@ export async function sendTurn(
   if (!isParts && modeId) {
     const mode = findTechnique(modeId);
     if (mode?.wrapDraft) {
-      content = await mode.wrapDraft(rawDraft, { callLLM: async () => '', signal });
+      content = await mode.wrapDraft(rawDraft, { originalInput: rawDraft, callLLM: async () => '', signal });
     }
   }
 
@@ -392,9 +392,10 @@ export async function sendTurn(
           output = null;
         } else {
           try {
+            const toolInput = (call.input as { input?: string })?.input ?? JSON.stringify(call.input);
             const result = await t.apply(
-              (call.input as { input?: string })?.input ?? JSON.stringify(call.input),
-              { callLLM: async () => '', signal }
+              toolInput,
+              { originalInput: toolInput, callLLM: async () => '', signal }
             );
             output = result.output;
           } catch (err) {

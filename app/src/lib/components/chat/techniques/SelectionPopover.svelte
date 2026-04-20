@@ -72,7 +72,7 @@
 
   async function applyTechnique(t: Technique) {
     if (!t.local) return;
-    const result = await t.apply(selectedText, { callLLM: async () => '', signal: undefined as unknown as AbortSignal });
+    const result = await t.apply(selectedText, { originalInput: selectedText, callLLM: async () => '', signal: undefined as unknown as AbortSignal });
     const output = result.output;
 
     if (composerRange) {

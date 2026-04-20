@@ -13,7 +13,7 @@ type MockTechnique = {
   category: 'mutate';
   local: boolean;
   apply: (input: string, ctx: TechniqueContext) => Promise<{ output: string; metadata?: Record<string, unknown> }>;
-  localTemplate?: (input: string, metadata: Record<string, unknown>) => string;
+  localTemplate?: (input: string, metadata: Record<string, unknown>, originalInput?: string) => string;
   icon?: undefined;
 };
 
@@ -44,6 +44,7 @@ import { runChain, buildLayerPrompt } from '../attack-chain';
 
 function makeCtx(overrides?: Partial<TechniqueContext>): TechniqueContext {
   return {
+    originalInput: '',
     model: 'test-model',
     callLLM: async () => { throw new Error('callLLM should not be called in local tests'); },
     signal: new AbortController().signal,

@@ -13,6 +13,7 @@ export function buildToolSchemas(enabledIds: string[]): Record<string, ToolDef> 
       execute: async (args) => {
         const { input } = args as { input: string };
         const result = await t.apply(input, {
+          originalInput: input,
           callLLM: async () => '', // LLM-tool execution is deterministic local transformers
           signal: undefined
         });

@@ -257,6 +257,7 @@
     // model accepts without rejection.
     const maxTokens = chat.settings.maxTokens ?? 4096;
     return {
+      originalInput: input,
       model: modelId,
       callLLM: async (req: { system?: string; user: string; temperature?: number }) => {
         const msgs: ChatMessage[] = [];

@@ -156,7 +156,7 @@ export function applyTechniqueForVariant(
     const meta: Record<string, unknown> = customInstruction.trim()
       ? { instruction: customInstruction.trim() }
       : {};
-    const templated = technique.localTemplate(userInput, meta);
+    const templated = technique.localTemplate(userInput, meta, userInput);
     return {
       system: `You will receive a template-wrapped question. Produce one variation of the wrapped version that preserves its structure (frame, register, scaffold ending) but uses different phrasing for the surrounding context. The user's original question (wherever it appears inside quotes or inline) must remain verbatim. Do not answer the question; only produce the varied wrapping. Output ONLY the variation inside <rewrite> tags.`,
       user: templated
