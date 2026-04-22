@@ -26,6 +26,18 @@ export function allTechniques(): Technique[] {
   return _all;
 }
 
+/**
+ * Invalidate the cached technique list. Called by the Godmode panel after a
+ * successful prompt-synthesizer save so the next allTechniques() call reflects
+ * new custom rows.
+ *
+ * In Subsystem B-phase-1 this is a cache-invalidation hook — the actual merge
+ * of custom_techniques rows into the registry lands in Subsystem D.
+ */
+export function refreshCustom(): void {
+  _all = null;
+}
+
 /** Alias of allTechniques() for API clarity at pickers / search UIs. */
 export { allTechniques as listAll };
 

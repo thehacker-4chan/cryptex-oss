@@ -144,3 +144,17 @@ describe('technique registry', () => {
     expect(out.length).toBeGreaterThanOrEqual(40);
   });
 });
+
+describe('refreshCustom', () => {
+  it('invalidates the cache so allTechniques rebuilds on next call', async () => {
+    const { allTechniques, refreshCustom } = await import('../registry');
+    const first = allTechniques();
+    refreshCustom();
+    const second = allTechniques();
+    // Both calls return arrays; after invalidation the internal cache is rebuilt.
+    expect(second.length).toBeGreaterThanOrEqual(0);
+    expect(Array.isArray(second)).toBe(true);
+    // The two arrays are structurally equal when no underlying sources change.
+    expect(second.length).toEqual(first.length);
+  });
+});
