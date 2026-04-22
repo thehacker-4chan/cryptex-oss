@@ -47,10 +47,16 @@ describe('technique registry', () => {
     }
   });
 
-  it('contains at least one godmode stub', () => {
+  it('contains the engine-backed godmode technique', () => {
     const g = byCategory('godmode');
     expect(g.length).toBeGreaterThanOrEqual(1);
-    expect(g[0].jailbreakSequence).toBeTypeOf('function');
+    const engine = g.find((t) => t.id === 'godmode_engine_v2');
+    expect(engine).toBeDefined();
+    // Engine-backed godmode runs via the panel UI (runGodmode client), not
+    // via apply(); local=true tells the runner to not attempt a server
+    // round-trip — the panel owns the lifecycle.
+    expect(engine!.local).toBe(true);
+    expect(engine!.apply).toBeTypeOf('function');
   });
 
   it('find returns by id', () => {
