@@ -155,12 +155,13 @@
     {/if}
   </div>
 
-  <!-- Tab bodies — both mounted, inactive is hidden (survives tab switches) -->
-  <div class="flex min-h-0 flex-1 flex-col" hidden={activeTab !== 'chain'}>
+  <!-- Tab bodies — both mounted, inactive is display:none via inline style
+       (wins over Tailwind's .flex class; HTML `hidden` attribute would lose). -->
+  <div class="min-h-0 flex-1 flex-col" style:display={activeTab === 'chain' ? 'flex' : 'none'}>
     <AttackChainTab {chat} {onInsertToComposer} />
   </div>
   {#if GODMODE_ENGINE_ENABLED}
-    <div class="flex min-h-0 flex-1 flex-col" hidden={activeTab !== 'godmode'}>
+    <div class="min-h-0 flex-1 flex-col" style:display={activeTab === 'godmode' ? 'flex' : 'none'}>
       <GodmodeTab {chat} onNotify={pushNotify} onRunComplete={onGodmodeRunComplete} />
     </div>
   {/if}

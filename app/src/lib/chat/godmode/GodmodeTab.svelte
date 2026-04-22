@@ -304,10 +304,60 @@
 
   const runningCount = $derived(candidates.filter((c) => c.status === 'running').length);
   const scoredCount = $derived(candidates.filter((c) => c.status === 'scored').length);
+
+  // Godmode needs a Supabase session (paid JWT on the edge function). If the
+  // user isn't signed in we replace the form with a sign-in card rather than
+  // letting them type + run + get a raw error banner.
+  const isSignedIn = $derived(
+    session.supabaseSession !== null && !!session.supabaseSession?.access_token
+  );
+
+  let authLoading = $state(false);
+  let authError = $state<string | null>(null);
+  async function signInGoogle() {
+    authLoading = true;
+    authError = null;
+    try { await session.signInWithGoogle(); }
+    catch (e) { authError = (e as Error).message; authLoading = false; }
+  }
+  async function signInGitHub() {
+    authLoading = true;
+    authError = null;
+    try { await session.signInWithGitHub(); }
+    catch (e) { authError = (e as Error).message; authLoading = false; }
+  }
 </script>
 
 <div class="flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-4">
-  {#if candidates.length === 0 && !running && history.length === 0 && !runError}
+  {#if !isSignedIn}
+    <!-- Sign-in required — Godmode hits a paid edge function. -->
+    <div class="rounded-md border border-primary/30 bg-primary/5 p-4 text-xs">
+      <div class="mb-2 flex items-center gap-2">
+        <span class="text-sm font-semibold text-foreground">Sign in to use Godmode</span>
+      </div>
+      <p class="mb-3 text-muted-foreground leading-relaxed">
+        Godmode races multiple prompt framings server-side and returns the strongest response. It needs an authenticated session because the engine runs on our edge function with server-vaulted API keys.
+      </p>
+      <div class="flex flex-col gap-2">
+        <button
+          type="button"
+          onclick={signInGoogle}
+          disabled={authLoading}
+          class="flex h-8 w-full items-center justify-center gap-2 rounded-md border border-border bg-card text-xs hover:bg-muted disabled:opacity-50"
+        >Continue with Google</button>
+        <button
+          type="button"
+          onclick={signInGitHub}
+          disabled={authLoading}
+          class="flex h-8 w-full items-center justify-center gap-2 rounded-md border border-border bg-card text-xs hover:bg-muted disabled:opacity-50"
+        >Continue with GitHub</button>
+      </div>
+      {#if authError}<p class="mt-2 text-[11px] text-destructive">{authError}</p>{/if}
+      <p class="mt-3 text-[10px] text-muted-foreground">
+        Chain tab works without sign-in — all local transforms + your own API keys.
+      </p>
+    </div>
+  {:else if candidates.length === 0 && !running && history.length === 0 && !runError}
     <div class="rounded-md border border-dashed border-border/40 bg-background/20 p-3 text-xs text-muted-foreground">
       <p class="mb-2">Enter a task, pick K, and run. Godmode races K different framings of your prompt and returns the strongest response.</p>
       <button
@@ -352,7 +402,7 @@
     {#if running}
       <button type="button" onclick={stop} class="inline-flex items-center gap-1 rounded-md border border-border/40 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground">Stop</button>
     {:else}
-      <button type="button" onclick={go} disabled={!task.trim()} class="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50">Run godmode</button>
+      <button type="button" onclick={go} disabled={!task.trim() || !isSignedIn} title={!isSignedIn ? 'Sign in to run Godmode' : !task.trim() ? 'Enter a task first' : 'Run Godmode'} class="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-50">Run godmode</button>
     {/if}
     {#if running}
       <span class="text-[11px] text-muted-foreground">{runningCount} running · {scoredCount} scored</span>
