@@ -38,6 +38,14 @@ export function refreshCustom(): void {
   _all = null;
 }
 
+// Auto-subscribe to the registry:refresh-custom event so Subsystem B's save
+// flow (panel.svelte) transparently triggers a cache rebuild. Guarded against
+// SSR / test environments where `window` is undefined. Subsystem D will later
+// extend refreshCustom() to also re-query custom_techniques.
+if (typeof window !== 'undefined') {
+  window.addEventListener('registry:refresh-custom', refreshCustom);
+}
+
 /** Alias of allTechniques() for API clarity at pickers / search UIs. */
 export { allTechniques as listAll };
 
