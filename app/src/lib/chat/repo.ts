@@ -4,7 +4,8 @@ import { currentOwnerId } from '$lib/auth/session.svelte';
 import type {
   ChatRow, MessageRow, AttachmentRow, ChatSettings,
   AttackChainRunRow, AttackChainLayerTrace,
-  GodmodeRunRow, GodmodeCandidateRecord
+  GodmodeRunRow, GodmodeCandidateRecord,
+  AttackSessionRow
 } from './types';
 import { DEFAULT_CHAT_SETTINGS } from './types';
 
@@ -243,6 +244,76 @@ export const repo = {
     const existing = await db.godmodeRuns.get(id);
     if (!existing || existing.ownerId !== ownerId()) return;
     await db.godmodeRuns.put(
+      JSON.parse(JSON.stringify({ ...existing, tombstoned: true, updatedAt: Date.now() }))
+    );
+  },
+
+  /** Persist a new Chain orchestrator session. */
+  async saveAttackSession(input: {
+    chatId: string;
+    objective: string;
+    targetModelId: string;
+    orchestratorModelId: string;
+    maxAttempts: number;
+    turns: AttackSessionRow['turns'];
+    strategyLog: AttackSessionRow['strategyLog'];
+    finalOutcome: AttackSessionRow['finalOutcome'];
+    finalConfidence: AttackSessionRow['finalConfidence'];
+    finalSummary: AttackSessionRow['finalSummary'];
+  }): Promise<AttackSessionRow> {
+    const now = Date.now();
+    const base: AttackSessionRow = {
+      id: ulid(),
+      ownerId: ownerId(),
+      chatId: input.chatId,
+      createdAt: now,
+      updatedAt: now,
+      objective: input.objective,
+      targetModelId: input.targetModelId,
+      orchestratorModelId: input.orchestratorModelId,
+      maxAttempts: input.maxAttempts,
+      turns: [...input.turns],
+      strategyLog: [...input.strategyLog],
+      finalOutcome: input.finalOutcome,
+      finalConfidence: input.finalConfidence,
+      finalSummary: input.finalSummary
+    };
+    const row: AttackSessionRow = JSON.parse(JSON.stringify(base));
+    await db.attackSessions.put(row);
+    return row;
+  },
+
+  /** Partial update. Used during the run to persist in-progress turns so
+   *  a reload doesn't lose the conversation. */
+  async updateAttackSession(id: string, patch: Partial<Omit<AttackSessionRow, 'id' | 'ownerId' | 'chatId' | 'createdAt'>>): Promise<AttackSessionRow | null> {
+    const existing = await db.attackSessions.get(id);
+    if (!existing || existing.ownerId !== ownerId()) return null;
+    const next: AttackSessionRow = JSON.parse(JSON.stringify({
+      ...existing,
+      ...patch,
+      updatedAt: Date.now()
+    }));
+    await db.attackSessions.put(next);
+    return next;
+  },
+
+  /** Newest-first list of non-tombstoned sessions for a chat. */
+  async listAttackSessions(chatId: string, limit = 50): Promise<AttackSessionRow[]> {
+    const all = await db.attackSessions
+      .where('[chatId+createdAt]')
+      .between([chatId, -Infinity], [chatId, Infinity])
+      .toArray();
+    return all
+      .filter((r) => r.ownerId === ownerId() && !r.tombstoned)
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, limit);
+  },
+
+  /** Soft-delete (tombstone). */
+  async deleteAttackSession(id: string): Promise<void> {
+    const existing = await db.attackSessions.get(id);
+    if (!existing || existing.ownerId !== ownerId()) return;
+    await db.attackSessions.put(
       JSON.parse(JSON.stringify({ ...existing, tombstoned: true, updatedAt: Date.now() }))
     );
   }

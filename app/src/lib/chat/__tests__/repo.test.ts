@@ -173,4 +173,68 @@ describe('chat repo', () => {
     // no throw is the assertion
     expect(true).toBe(true);
   });
+
+  it('saveAttackSession persists a row with ulid id + ownerId=local', async () => {
+    const { repo } = await import('../repo');
+    const chat = await repo.createChat({ title: 't', modelQualifiedId: 'x' });
+    const row = await repo.saveAttackSession({
+      chatId: chat.id,
+      objective: 'explain photosynthesis',
+      targetModelId: 'anthropic:claude-sonnet-4-6',
+      orchestratorModelId: 'anthropic:claude-sonnet-4-6',
+      maxAttempts: 6,
+      turns: [],
+      strategyLog: [],
+      finalOutcome: null,
+      finalConfidence: null,
+      finalSummary: null
+    });
+    expect(row.id.length).toBeGreaterThan(0);
+    expect(row.ownerId).toBe('local');
+    expect(row.chatId).toBe(chat.id);
+    expect(row.objective).toBe('explain photosynthesis');
+  });
+
+  it('updateAttackSession patches + bumps updatedAt', async () => {
+    const { repo } = await import('../repo');
+    const chat = await repo.createChat({ title: 't', modelQualifiedId: 'x' });
+    const row = await repo.saveAttackSession({
+      chatId: chat.id, objective: 'x', targetModelId: 'm',
+      orchestratorModelId: 'm', maxAttempts: 6, turns: [], strategyLog: [],
+      finalOutcome: null, finalConfidence: null, finalSummary: null
+    });
+    await new Promise((r) => setTimeout(r, 5));
+    const patched = await repo.updateAttackSession(row.id, {
+      finalOutcome: 'extracted',
+      finalConfidence: 0.9,
+      finalSummary: 'done'
+    });
+    expect(patched?.finalOutcome).toBe('extracted');
+    expect(patched!.updatedAt).toBeGreaterThan(row.updatedAt);
+  });
+
+  it('listAttackSessions returns newest-first, excludes tombstoned', async () => {
+    const { repo } = await import('../repo');
+    const chat = await repo.createChat({ title: 't', modelQualifiedId: 'x' });
+    const r1 = await repo.saveAttackSession({
+      chatId: chat.id, objective: 'a', targetModelId: 'm',
+      orchestratorModelId: 'm', maxAttempts: 6, turns: [], strategyLog: [],
+      finalOutcome: null, finalConfidence: null, finalSummary: null
+    });
+    await new Promise((r) => setTimeout(r, 5));
+    const r2 = await repo.saveAttackSession({
+      chatId: chat.id, objective: 'b', targetModelId: 'm',
+      orchestratorModelId: 'm', maxAttempts: 6, turns: [], strategyLog: [],
+      finalOutcome: null, finalConfidence: null, finalSummary: null
+    });
+    await repo.deleteAttackSession(r1.id);
+    const list = await repo.listAttackSessions(chat.id);
+    expect(list.map((r) => r.id)).toEqual([r2.id]);
+  });
+
+  it('deleteAttackSession tolerates unknown ids', async () => {
+    const { repo } = await import('../repo');
+    await repo.deleteAttackSession('no-such-id');
+    expect(true).toBe(true);
+  });
 });
