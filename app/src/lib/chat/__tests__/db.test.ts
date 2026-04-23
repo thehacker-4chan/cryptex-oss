@@ -59,3 +59,31 @@ describe('db v3 — godmodeRuns table', () => {
     expect(got?.task).toBe('hello');
   });
 });
+
+describe('db v4 — attackSessions table', () => {
+  it('attackSessions table exists and accepts a row', async () => {
+    indexedDB.deleteDatabase('cryptex-chat');
+    vi.resetModules();
+    const { db } = await import('../db');
+    await db.open();
+    const row = {
+      id: 'session-1',
+      ownerId: 'local',
+      chatId: 'chat-1',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      objective: 'test',
+      targetModelId: 'anthropic:claude-sonnet-4-6',
+      orchestratorModelId: 'anthropic:claude-sonnet-4-6',
+      maxAttempts: 6,
+      turns: [],
+      strategyLog: [],
+      finalOutcome: null,
+      finalConfidence: null,
+      finalSummary: null
+    };
+    await db.attackSessions.put(row as any);
+    const got = await db.attackSessions.get('session-1');
+    expect(got?.objective).toBe('test');
+  });
+});

@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { ChatRow, MessageRow, AttachmentRow, ToolStateRow, AttackChainRunRow, GodmodeRunRow } from './types';
+import type { ChatRow, MessageRow, AttachmentRow, ToolStateRow, AttackChainRunRow, GodmodeRunRow, AttackSessionRow } from './types';
 
 class CryptexChatDB extends Dexie {
   chats!: Table<ChatRow, string>;
@@ -8,6 +8,7 @@ class CryptexChatDB extends Dexie {
   toolStates!: Table<ToolStateRow, [string, string]>;
   attackChainRuns!: Table<AttackChainRunRow, string>;
   godmodeRuns!: Table<GodmodeRunRow, string>;
+  attackSessions!: Table<AttackSessionRow, string>;
 
   constructor() {
     super('cryptex-chat');
@@ -36,6 +37,17 @@ class CryptexChatDB extends Dexie {
       toolStates:      '[toolId+ownerId], toolId, ownerId, updatedAt',
       attackChainRuns: 'id, chatId, ownerId, createdAt, [chatId+createdAt], tombstoned',
       godmodeRuns:     'id, chatId, ownerId, createdAt, [chatId+createdAt], tombstoned'
+    });
+    // v4: add attackSessions for Chain orchestrator v2. Additive — prior
+    // tables preserved; no data migration needed.
+    this.version(4).stores({
+      chats:           'id, ownerId, updatedAt, pinned, archivedAt, parentChatId, *tags, tombstoned',
+      messages:        'id, chatId, [chatId+createdAt], parentId, role, *tags, trainingInclude, ownerId, tombstoned',
+      attachments:     'id, messageId, ownerId, tombstoned',
+      toolStates:      '[toolId+ownerId], toolId, ownerId, updatedAt',
+      attackChainRuns: 'id, chatId, ownerId, createdAt, [chatId+createdAt], tombstoned',
+      godmodeRuns:     'id, chatId, ownerId, createdAt, [chatId+createdAt], tombstoned',
+      attackSessions:  'id, chatId, ownerId, createdAt, [chatId+createdAt], tombstoned'
     });
   }
 }
