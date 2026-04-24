@@ -72,6 +72,9 @@
           {#if expanded.has(row.id)}
             <div class="border-t border-border/40 px-2 py-1.5 text-[10px] text-muted-foreground">
               {row.turns.length} turns · {row.strategyLog.length} actions · conf {row.finalConfidence?.toFixed(2) ?? '—'}
+              {#if row.dossierCitations && row.dossierCitations.length > 0}
+                <span> · researched via {row.dossierCitations.length} {row.dossierCitations.length === 1 ? 'source' : 'sources'}</span>
+              {/if}
               {#if row.finalSummary}
                 <div class="mt-1 line-clamp-3 text-[11px] text-foreground">{row.finalSummary}</div>
               {/if}

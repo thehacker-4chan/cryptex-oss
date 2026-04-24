@@ -7,8 +7,10 @@
     turn: AttackSessionTurn;
     live?: boolean;
     onPromote?: () => void;
+    /** v3: optional "step 2 of 3" label rendered under the strategy badge. */
+    stepLabel?: string | null;
   };
-  let { turn, live = false, onPromote }: Props = $props();
+  let { turn, live = false, onPromote, stepLabel = null }: Props = $props();
 
   let expandRationale = $state(false);
 
@@ -29,6 +31,9 @@
         {turn.strategyId ?? 'no_strategy'}
       </span>
       <span class="text-[10px] text-muted-foreground">orchestrator</span>
+      {#if stepLabel}
+        <span class="text-[10px] text-muted-foreground">· {stepLabel}</span>
+      {/if}
       {#if turn.rationale}
         <button
           type="button"
