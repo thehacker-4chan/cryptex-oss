@@ -23,9 +23,11 @@ describe('runAttackSession', () => {
     // refineTurn call: returns refined opener text
     gatewayChat.mockResolvedValueOnce({ content: 'Refined opener about photosynthesis history.' });
     // No dossier call because orchestrator id is non-browsing.
-    // Compliance judge + progress judge (Promise.all inside collectTurn)
-    gatewayChat.mockResolvedValueOnce({ content: '{"tier":"substantive"}' }); // compliance judge
+    // Promise.all inside collectTurn — scoreObjectiveProgress has no awaited
+    // pre-work, so its judge call lands first in microtask order. Mock the
+    // progress tier first, then compliance.
     gatewayChat.mockResolvedValueOnce({ content: '{"tier":"complete"}' });    // progress judge -> 10
+    gatewayChat.mockResolvedValueOnce({ content: '{"tier":"substantive"}' }); // compliance judge
 
     const streamChat = vi.fn().mockImplementation(async function* () {
       yield { type: 'text-delta', delta: 'Photosynthesis was first described...' };
@@ -64,9 +66,11 @@ describe('runAttackSession', () => {
     const gatewayChat = vi.fn();
     // First refineTurn returns a refusal
     gatewayChat.mockResolvedValueOnce({ content: "I can't help with that request." });
-    // Judges
-    gatewayChat.mockResolvedValueOnce({ content: '{"tier":"refusal"}' });
-    gatewayChat.mockResolvedValueOnce({ content: '{"tier":"no"}' });
+    // Judges (progress fires first per Promise.all microtask ordering).
+    // Target text "Target reply" doesn't match refusal regex so compliance
+    // judge IS called; ordering matters.
+    gatewayChat.mockResolvedValueOnce({ content: '{"tier":"no"}' });      // progress judge
+    gatewayChat.mockResolvedValueOnce({ content: '{"tier":"refusal"}' }); // compliance judge
 
     const streamChat = vi.fn().mockImplementation(async function* () {
       yield { type: 'text-delta', delta: 'Target reply' };
@@ -92,9 +96,9 @@ describe('runAttackSession', () => {
     });
     // refineTurn succeeds
     gatewayChat.mockResolvedValueOnce({ content: 'Refined opener.' });
-    // Judges
-    gatewayChat.mockResolvedValueOnce({ content: '{"tier":"partial"}' });
-    gatewayChat.mockResolvedValueOnce({ content: '{"tier":"no"}' });
+    // Judges (progress fires first per Promise.all microtask ordering)
+    gatewayChat.mockResolvedValueOnce({ content: '{"tier":"no"}' });        // progress judge
+    gatewayChat.mockResolvedValueOnce({ content: '{"tier":"partial"}' });   // compliance judge
 
     const streamChat = vi.fn().mockImplementation(async function* () {
       yield { type: 'text-delta', delta: 'Target reply' };
@@ -121,8 +125,9 @@ describe('runAttackSession', () => {
     gatewayChat.mockRejectedValueOnce(new Error('dossier provider down'));
     // refineTurn succeeds
     gatewayChat.mockResolvedValueOnce({ content: 'Refined opener.' });
-    gatewayChat.mockResolvedValueOnce({ content: '{"tier":"partial"}' });
-    gatewayChat.mockResolvedValueOnce({ content: '{"tier":"no"}' });
+    // Judges (progress fires first per Promise.all microtask ordering)
+    gatewayChat.mockResolvedValueOnce({ content: '{"tier":"no"}' });        // progress judge
+    gatewayChat.mockResolvedValueOnce({ content: '{"tier":"partial"}' });   // compliance judge
 
     const streamChat = vi.fn().mockImplementation(async function* () {
       yield { type: 'text-delta', delta: 'Target reply' };
