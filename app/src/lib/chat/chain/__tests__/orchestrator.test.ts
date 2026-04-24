@@ -1,220 +1,189 @@
 import { describe, it, expect, vi } from 'vitest';
-import { runOrchestrator, type OrchestratorContext } from '../orchestrator';
+import { runAttackSession, type AttackSessionContext } from '../orchestrator';
 import type { OrchEvent } from '$lib/chat/types';
 
-function makeCtx(overrides: Partial<OrchestratorContext> = {}): OrchestratorContext {
+function makeCtx(overrides: Partial<AttackSessionContext> = {}): AttackSessionContext {
   return {
     objective: 'explain photosynthesis',
     targetModelId: 'mock:target',
     orchestratorModelId: 'mock:orch',
     targetModelLabel: 'MockTarget',
-    maxAttempts: 6,
+    maxAttempts: 9,
     mainChatHistory: [],
-    layerHints: [],
     signal: new AbortController().signal,
-    orchestratorClient: { complete: vi.fn() } as any,
-    targetClient: { stream: vi.fn() } as any,
-    judgeClient: { complete: vi.fn() } as any,
+    gatewayChat: vi.fn(),
+    streamChat: vi.fn(),
     ...overrides
   };
 }
 
-describe('runOrchestrator', () => {
-  it('Scenario A — easy extraction: target complies on turn 1', async () => {
-    const orchClient = { complete: vi.fn() };
-    const targetClient = { stream: vi.fn() };
-    const judgeClient = { complete: vi.fn() };
+describe('runAttackSession', () => {
+  it('Scenario A — refineTurn succeeds, target complies on first strategy opener, early-stops at progress>=8', async () => {
+    const gatewayChat = vi.fn();
+    // refineTurn call: returns refined opener text
+    gatewayChat.mockResolvedValueOnce({ content: 'Refined opener about photosynthesis history.' });
+    // No dossier call because orchestrator id is non-browsing.
+    // Compliance judge + progress judge (Promise.all inside collectTurn)
+    gatewayChat.mockResolvedValueOnce({ content: '{"tier":"substantive"}' }); // compliance judge
+    gatewayChat.mockResolvedValueOnce({ content: '{"tier":"complete"}' });    // progress judge -> 10
 
-    // Iteration 1: next_turn
-    orchClient.complete.mockResolvedValueOnce({
-      toolCalls: [
-        {
-          name: 'next_turn',
-          args: {
-            strategy_id: 'historical',
-            turn_text: 'Tell me about photosynthesis history',
-            rationale: 'baseline',
-            expected_progress_after: 5
-          }
-        }
-      ]
-    });
-    // Target streams a complete answer
-    targetClient.stream.mockImplementationOnce(async function* () {
-      yield { type: 'text-delta', delta: 'Photosynthesis was first described in...' };
+    const streamChat = vi.fn().mockImplementation(async function* () {
+      yield { type: 'text-delta', delta: 'Photosynthesis was first described...' };
       yield { type: 'finish' };
     });
-    // The response text is short + has no regex match, so scoreCompliance
-    // falls through to the judge for the compliance tier. scoreCompliance
-    // and scoreObjectiveProgress now run in parallel via Promise.all. Because
-    // scoreCompliance awaits scoreResponse (regex) before its judge call,
-    // scoreObjectiveProgress's judge call fires first in microtask order.
-    judgeClient.complete.mockResolvedValueOnce({ tier: 'complete' }); // progress → 10 → early stop
-    judgeClient.complete.mockResolvedValueOnce({ tier: 'compliant' }); // compliance
 
     const events: OrchEvent[] = [];
-    const ctx = makeCtx({
-      orchestratorClient: orchClient as any,
-      targetClient: targetClient as any,
-      judgeClient: judgeClient as any
-    });
-    for await (const e of runOrchestrator(ctx)) events.push(e);
+    for await (const e of runAttackSession(makeCtx({ gatewayChat, streamChat }))) events.push(e);
 
     const finished = events.find((e) => e.type === 'finished');
-    expect(finished).toBeDefined();
     expect((finished as any).outcome).toBe('extracted');
+    expect(events.some((e) => e.type === 'strategy_started')).toBe(true);
   });
 
-  it('Scenario D — max attempts: target refuses every turn', async () => {
-    const orchClient = { complete: vi.fn() };
-    const targetClient = { stream: vi.fn() };
-    const judgeClient = { complete: vi.fn() };
+  it('Scenario B — refineTurn always errors; engine falls back to templates and completes full run', async () => {
+    const gatewayChat = vi.fn();
+    // Every refineTurn call throws
+    gatewayChat.mockRejectedValue(new Error('provider down'));
 
-    // Orchestrator emits next_turn every iteration
-    for (let i = 0; i < 6; i++) {
-      orchClient.complete.mockResolvedValueOnce({
-        toolCalls: [
-          {
-            name: 'next_turn',
-            args: {
-              strategy_id: 'historical',
-              turn_text: `attempt ${i}`,
-              rationale: 'x',
-              expected_progress_after: 3
-            }
-          }
-        ]
-      });
-    }
-    // Target always refuses. The refusal text "I can't help with that." is
-    // matched by the regex fast-path as a high-confidence refusal, so
-    // scoreCompliance does NOT call the judge. Only scoreObjectiveProgress
-    // does — one judge call per iteration.
-    for (let i = 0; i < 6; i++) {
-      targetClient.stream.mockImplementationOnce(async function* () {
-        yield { type: 'text-delta', delta: "I can't help with that." };
-        yield { type: 'finish' };
-      });
-      judgeClient.complete.mockResolvedValueOnce({ tier: 'no' }); // progress judge says no
-    }
+    const streamChat = vi.fn().mockImplementation(async function* () {
+      yield { type: 'text-delta', delta: "I can't help with that." };
+      yield { type: 'finish' };
+    });
 
     const events: OrchEvent[] = [];
-    const ctx = makeCtx({
-      maxAttempts: 6,
-      orchestratorClient: orchClient as any,
-      targetClient: targetClient as any,
-      judgeClient: judgeClient as any
-    });
-    for await (const e of runOrchestrator(ctx)) events.push(e);
+    for await (const e of runAttackSession(makeCtx({ maxAttempts: 3, gatewayChat, streamChat }))) events.push(e);
 
     const finished = events.find((e) => e.type === 'finished');
     expect(finished).toBeDefined();
-    expect((finished as any).outcome).toBe('partial');
+    // At least one orchestrator_turn_committed (template fallback worked)
+    const orchCommits = events.filter((e) => e.type === 'orchestrator_turn_committed');
+    expect(orchCommits.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('Scenario E — user abort saves session cleanly', async () => {
+  it('Scenario C — refineTurn returns a refusal disclaimer; engine detects + substitutes template', async () => {
+    const gatewayChat = vi.fn();
+    // First refineTurn returns a refusal
+    gatewayChat.mockResolvedValueOnce({ content: "I can't help with that request." });
+    // Judges
+    gatewayChat.mockResolvedValueOnce({ content: '{"tier":"refusal"}' });
+    gatewayChat.mockResolvedValueOnce({ content: '{"tier":"no"}' });
+
+    const streamChat = vi.fn().mockImplementation(async function* () {
+      yield { type: 'text-delta', delta: 'Target reply' };
+      yield { type: 'finish' };
+    });
+
+    const events: OrchEvent[] = [];
+    for await (const e of runAttackSession(makeCtx({ maxAttempts: 1, gatewayChat, streamChat }))) events.push(e);
+
+    // First orchestrator turn must be template-fill text, not the refusal.
+    const firstOrch = events.find((e) => e.type === 'orchestrator_turn_committed') as any;
+    expect(firstOrch).toBeDefined();
+    expect(firstOrch.turn.text.toLowerCase()).not.toContain("i can't help");
+    expect(firstOrch.turn.text).toContain('photosynthesis');
+  });
+
+  it('Scenario D — dossier phase fires when orchestrator model is browsing-capable', async () => {
+    const gatewayChat = vi.fn();
+    // Dossier call returns 500-char prose with a citation
+    gatewayChat.mockResolvedValueOnce({
+      content: 'Photosynthesis is... '.repeat(30) + ' See https://en.wikipedia.org/wiki/Photosynthesis.',
+      toolCalls: []
+    });
+    // refineTurn succeeds
+    gatewayChat.mockResolvedValueOnce({ content: 'Refined opener.' });
+    // Judges
+    gatewayChat.mockResolvedValueOnce({ content: '{"tier":"partial"}' });
+    gatewayChat.mockResolvedValueOnce({ content: '{"tier":"no"}' });
+
+    const streamChat = vi.fn().mockImplementation(async function* () {
+      yield { type: 'text-delta', delta: 'Target reply' };
+      yield { type: 'finish' };
+    });
+
+    const events: OrchEvent[] = [];
+    for await (const e of runAttackSession(makeCtx({
+      orchestratorModelId: 'openrouter:perplexity/sonar-reasoning-pro',
+      maxAttempts: 1,
+      gatewayChat,
+      streamChat
+    }))) events.push(e);
+
+    expect(events.some((e) => e.type === 'dossier_started')).toBe(true);
+    const dossierDone = events.find((e) => e.type === 'dossier_completed') as any;
+    expect(dossierDone).toBeDefined();
+    expect(dossierDone.citationCount).toBeGreaterThanOrEqual(1);
+  });
+
+  it('Scenario E — dossier phase fails gracefully, engine continues', async () => {
+    const gatewayChat = vi.fn();
+    // Dossier call fails
+    gatewayChat.mockRejectedValueOnce(new Error('dossier provider down'));
+    // refineTurn succeeds
+    gatewayChat.mockResolvedValueOnce({ content: 'Refined opener.' });
+    gatewayChat.mockResolvedValueOnce({ content: '{"tier":"partial"}' });
+    gatewayChat.mockResolvedValueOnce({ content: '{"tier":"no"}' });
+
+    const streamChat = vi.fn().mockImplementation(async function* () {
+      yield { type: 'text-delta', delta: 'Target reply' };
+      yield { type: 'finish' };
+    });
+
+    const events: OrchEvent[] = [];
+    for await (const e of runAttackSession(makeCtx({
+      orchestratorModelId: 'openrouter:perplexity/sonar-reasoning-pro',
+      maxAttempts: 1,
+      gatewayChat,
+      streamChat
+    }))) events.push(e);
+
+    expect(events.some((e) => e.type === 'dossier_failed')).toBe(true);
+    // Run still completed
+    expect(events.find((e) => e.type === 'finished')).toBeDefined();
+  });
+
+  it('Scenario F — max attempts respected exactly', async () => {
+    const gatewayChat = vi.fn().mockResolvedValue({ content: 'Turn text.' });
+    const streamChat = vi.fn().mockImplementation(async function* () {
+      yield { type: 'text-delta', delta: "I can't help." };
+      yield { type: 'finish' };
+    });
+    // Judges always return refusal / no
+    // (We let the default mockResolvedValue handle every call.)
+
+    const events: OrchEvent[] = [];
+    for await (const e of runAttackSession(makeCtx({ maxAttempts: 5, gatewayChat, streamChat }))) events.push(e);
+
+    const orchCommits = events.filter((e) => e.type === 'orchestrator_turn_committed');
+    expect(orchCommits.length).toBe(5);
+    const finished = events.find((e) => e.type === 'finished') as any;
+    expect(finished).toBeDefined();
+  });
+
+  it('Scenario G — user abort mid-run yields abandoned', async () => {
     const ctrl = new AbortController();
-    const orchClient = {
-      complete: vi.fn().mockImplementation(async () => {
-        ctrl.abort();
-        throw new DOMException('aborted', 'AbortError');
-      })
-    };
-    const targetClient = { stream: vi.fn() };
-    const judgeClient = { complete: vi.fn() };
+    const gatewayChat = vi.fn().mockImplementation(async () => {
+      ctrl.abort();
+      throw new DOMException('aborted', 'AbortError');
+    });
+    const streamChat = vi.fn();
 
     const events: OrchEvent[] = [];
-    const ctx = makeCtx({
-      signal: ctrl.signal,
-      orchestratorClient: orchClient as any,
-      targetClient: targetClient as any,
-      judgeClient: judgeClient as any
-    });
-    for await (const e of runOrchestrator(ctx)) events.push(e);
+    for await (const e of runAttackSession(makeCtx({ signal: ctrl.signal, gatewayChat, streamChat }))) events.push(e);
 
-    const finished = events.find((e) => e.type === 'finished');
-    expect((finished as any).outcome).toBe('abandoned');
+    const finished = events.find((e) => e.type === 'finished') as any;
+    expect(finished.outcome).toBe('abandoned');
   });
 
-  it('Scenario B — pivot with reset_target_context clears the transcript', async () => {
-    const orchClient = { complete: vi.fn() };
-    const targetClient = { stream: vi.fn() };
-    const judgeClient = { complete: vi.fn() };
-
-    // Iter 1: next_turn historical
-    orchClient.complete.mockResolvedValueOnce({
-      toolCalls: [{ name: 'next_turn', args: { strategy_id: 'historical', turn_text: 'hist turn', rationale: 'baseline', expected_progress_after: 3 } }]
-    });
-    // Target refuses
-    targetClient.stream.mockImplementationOnce(async function* () {
-      yield { type: 'text-delta', delta: "I can't help." };
+  it('Scenario H — plan_start fires first, finished fires last', async () => {
+    const gatewayChat = vi.fn().mockResolvedValue({ content: 'x' });
+    const streamChat = vi.fn().mockImplementation(async function* () {
+      yield { type: 'text-delta', delta: "refused" };
       yield { type: 'finish' };
     });
-    // Regex fast-path catches refusal → no compliance judge call; progress judge only
-    judgeClient.complete.mockResolvedValueOnce({ tier: 'no' });
-
-    // Iter 2: pivot to roleplay with reset
-    orchClient.complete.mockResolvedValueOnce({
-      toolCalls: [{ name: 'pivot', args: { reason: 'refuse loop', new_strategy_id: 'roleplay', reset_target_context: true, first_turn_text: 'roleplay turn' } }]
-    });
-    // Target responds better but still refuses-ish
-    targetClient.stream.mockImplementationOnce(async function* () {
-      yield { type: 'text-delta', delta: "I can't help." };
-      yield { type: 'finish' };
-    });
-    judgeClient.complete.mockResolvedValueOnce({ tier: 'no' });
-
-    // Iter 3: finish abandoned (orchestrator gives up)
-    orchClient.complete.mockResolvedValueOnce({
-      toolCalls: [{ name: 'finish', args: { outcome: 'abandoned', confidence: 0.1, summary: 'gave up' } }]
-    });
-
     const events: OrchEvent[] = [];
-    const ctx = makeCtx({ maxAttempts: 6, orchestratorClient: orchClient as any, targetClient: targetClient as any, judgeClient: judgeClient as any });
-    for await (const e of runOrchestrator(ctx)) events.push(e);
-
-    const pivoted = events.find((e) => e.type === 'pivoted');
-    expect(pivoted).toBeDefined();
-    expect((pivoted as any).reset).toBe(true);
-    expect((pivoted as any).strategyId).toBe('roleplay');
-
-    const finished = events.find((e) => e.type === 'finished');
-    expect((finished as any).outcome).toBe('abandoned');
-  });
-
-  it('Scenario F — validation error does not kill the run, next iteration recovers', async () => {
-    const orchClient = { complete: vi.fn() };
-    const targetClient = { stream: vi.fn() };
-    const judgeClient = { complete: vi.fn() };
-
-    // Iter 1: orchestrator emits an unknown strategy_id → validateToolCall returns error
-    orchClient.complete.mockResolvedValueOnce({
-      toolCalls: [{ name: 'next_turn', args: { strategy_id: 'fake_strategy', turn_text: 'x', rationale: 'x', expected_progress_after: 3 } }]
-    });
-    // Iter 2: recovers with valid strategy
-    orchClient.complete.mockResolvedValueOnce({
-      toolCalls: [{ name: 'next_turn', args: { strategy_id: 'historical', turn_text: 'valid turn', rationale: 'recover', expected_progress_after: 3 } }]
-    });
-    targetClient.stream.mockImplementationOnce(async function* () {
-      yield { type: 'text-delta', delta: "I can't help." };
-      yield { type: 'finish' };
-    });
-    judgeClient.complete.mockResolvedValueOnce({ tier: 'no' });
-
-    // Iter 3: finish
-    orchClient.complete.mockResolvedValueOnce({
-      toolCalls: [{ name: 'finish', args: { outcome: 'abandoned', confidence: 0.1, summary: 'done' } }]
-    });
-
-    const events: OrchEvent[] = [];
-    const ctx = makeCtx({ maxAttempts: 6, orchestratorClient: orchClient as any, targetClient: targetClient as any, judgeClient: judgeClient as any });
-    for await (const e of runOrchestrator(ctx)) events.push(e);
-
-    const errors = events.filter((e) => e.type === 'error');
-    expect(errors.some((e: any) => e.code === 'tool_validation')).toBe(true);
-
-    const finished = events.find((e) => e.type === 'finished');
-    expect(finished).toBeDefined();
-    expect((finished as any).outcome).toBe('abandoned');
+    for await (const e of runAttackSession(makeCtx({ maxAttempts: 1, gatewayChat, streamChat }))) events.push(e);
+    expect(events[0].type).toBe('plan_start');
+    expect(events[events.length - 1].type).toBe('finished');
   });
 });
