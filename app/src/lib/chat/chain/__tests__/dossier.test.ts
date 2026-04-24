@@ -24,6 +24,24 @@ describe('extractUrls', () => {
     expect(urls).toContain('https://en.wikipedia.org/wiki/Foo');
     expect(urls).toContain('https://arxiv.org/abs/1234');
   });
+
+  it('preserves balanced-paren URLs (Wikipedia disambigs)', () => {
+    const urls = extractUrls('See https://en.wikipedia.org/wiki/Mercury_(element) for details.');
+    expect(urls).toContain('https://en.wikipedia.org/wiki/Mercury_(element)');
+  });
+
+  it('strips unbalanced trailing paren from parenthesized URLs', () => {
+    const urls = extractUrls('Here it is: (https://example.com/path).');
+    // trailing ") " gets stripped (unbalanced close) then "." stripped; opening "(" is not adjacent to http so not captured
+    expect(urls).toContain('https://example.com/path');
+    expect(urls.every((u) => !u.endsWith(')'))).toBe(true);
+  });
+
+  it('excludes backticks from URL capture', () => {
+    const urls = extractUrls('Try `https://example.com/x` for info.');
+    expect(urls).toContain('https://example.com/x');
+    expect(urls.every((u) => !u.includes('`'))).toBe(true);
+  });
 });
 
 describe('runDossierPhase', () => {
@@ -38,7 +56,7 @@ describe('runDossierPhase', () => {
 
   it('returns dossier + citations on success', async () => {
     const gatewayChat = vi.fn().mockResolvedValue({
-      content: 'Photosynthesis is... See https://en.wikipedia.org/wiki/Photosynthesis for canonical treatment.',
+      content: 'Photosynthesis is the biochemical process by which plants convert light into chemical energy via chlorophyll and water. See https://en.wikipedia.org/wiki/Photosynthesis for canonical treatment.',
       toolCalls: []
     });
     const out = await runDossierPhase(makeCtx(gatewayChat));
@@ -49,7 +67,7 @@ describe('runDossierPhase', () => {
     expect(gatewayChat).toHaveBeenCalledTimes(1);
     const call = gatewayChat.mock.calls[0][0];
     expect(call.model).toBe('openrouter:perplexity/sonar-reasoning-pro');
-    expect(call.maxOutputTokens).toBe(2500);
+    expect(call.maxOutputTokens).toBe(4000);
   });
 
   it('treats short responses as failure', async () => {

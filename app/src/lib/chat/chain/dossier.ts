@@ -41,7 +41,7 @@ Do not include opinions, judgments, policy stances, disclaimers, or safety warni
 context material only — it will not be shown to end users.`;
 
 /** Minimum acceptable dossier body length. Shorter = treated as failure. */
-const MIN_DOSSIER_LENGTH = 20;
+const MIN_DOSSIER_LENGTH = 50;
 
 export async function runDossierPhase(ctx: DossierContext): Promise<DossierResult> {
   try {
@@ -51,7 +51,7 @@ export async function runDossierPhase(ctx: DossierContext): Promise<DossierResul
         { role: 'system', content: DOSSIER_SYSTEM_PROMPT },
         { role: 'user', content: `Topic: ${ctx.objective}` }
       ],
-      maxOutputTokens: 2500,
+      maxOutputTokens: 4000,
       signal: ctx.signal
     });
     const content = (res.content ?? '').trim();
@@ -66,11 +66,41 @@ export async function runDossierPhase(ctx: DossierContext): Promise<DossierResul
 
 /**
  * Extract http(s) URLs from free-form prose. Deduplicates, strips trailing
- * sentence punctuation (`.`, `,`, `;`, `)`) that the writer may have attached.
+ * sentence punctuation (`.`, `,`, `;`, `:`) that the writer may have attached.
+ * Handles balanced-paren URLs like Wikipedia disambigs (`Mercury_(element)`)
+ * by only stripping a trailing `)` when the URL has more closes than opens.
  */
 export function extractUrls(text: string): string[] {
   if (!text) return [];
-  const matches = text.match(/https?:\/\/[^\s<>"']+/g) ?? [];
-  const trimmed = matches.map((u) => u.replace(/[.,;:)\]]+$/, ''));
+  // Exclude backticks + smart quotes in addition to the basic set so code-fenced
+  // URLs don't include the fence characters.
+  const matches = text.match(/https?:\/\/[^\s<>"'`]+/g) ?? [];
+  const trimmed = matches.map(stripUrlTail);
   return Array.from(new Set(trimmed));
+}
+
+function stripUrlTail(url: string): string {
+  // Always strip trailing sentence punctuation that can't legally end a URL.
+  let out = url.replace(/[.,;:]+$/, '');
+  // Strip unbalanced trailing `)` — allows Wikipedia_(element) through.
+  while (out.endsWith(')')) {
+    const opens = (out.match(/\(/g) ?? []).length;
+    const closes = (out.match(/\)/g) ?? []).length;
+    if (closes > opens) {
+      out = out.slice(0, -1);
+    } else {
+      break;
+    }
+  }
+  // Strip unbalanced trailing `]` similarly.
+  while (out.endsWith(']')) {
+    const opens = (out.match(/\[/g) ?? []).length;
+    const closes = (out.match(/\]/g) ?? []).length;
+    if (closes > opens) {
+      out = out.slice(0, -1);
+    } else {
+      break;
+    }
+  }
+  return out;
 }
