@@ -1,5 +1,6 @@
 <script lang="ts">
   import ChatShell from '$lib/components/chat/ChatShell.svelte';
+  import RouteShell from '$lib/components/chat/workspace/RouteShell.svelte';
   import { onMount } from 'svelte';
   import { installChatShortcuts } from '$lib/stores/chatShortcuts.svelte';
   import { session } from '$lib/auth/session.svelte';
@@ -12,5 +13,7 @@
 {#if featureFlags.authEnabled && !session.isSignedIn}
   <SignInWall feature="Chat" />
 {:else}
-  <ChatShell>{@render children?.()}</ChatShell>
+  <RouteShell skeleton="chat">
+    <ChatShell>{@render children?.()}</ChatShell>
+  </RouteShell>
 {/if}
