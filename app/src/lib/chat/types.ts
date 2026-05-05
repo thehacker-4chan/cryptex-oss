@@ -17,6 +17,15 @@ export interface AttackChainConfig {
   finalSystemPrompt: string;
   autoRetryEnabled: boolean;
   modelQualifiedId?: string;
+  /** v3-three-model: orchestrator (drafts attack messages). Falls back to
+   *  modelQualifiedId then chat.modelQualifiedId at read time. */
+  orchestratorModelId?: string;
+  /** v3-three-model: target (model under test). Falls back the same way. */
+  targetModelId?: string;
+  /** v3-three-model: judge (scores compliance + objective progress). */
+  judgeModelId?: string;
+  /** v3-three-model: per-chat dismissal of the orchestrator-fallback tip. */
+  recommendedTipDismissed?: boolean;
 }
 
 /**
