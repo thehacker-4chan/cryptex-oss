@@ -18,6 +18,9 @@ app/vite.config.js.timestamp-*
 # Claude Code local session state
 .claude/
 
+# Superpowers brainstorming visual companion sessions
+.superpowers/
+
 # graphify knowledge-graph cache (local-only)
 graphify-out/
 .graphify_detect.json
