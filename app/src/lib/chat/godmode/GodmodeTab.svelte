@@ -12,6 +12,9 @@
   import { injectGodmodeTurn } from '$lib/chat/dispatch';
   import { repo } from '$lib/chat/repo';
   import { session } from '$lib/auth/session.svelte';
+  import { featureFlags } from '$lib/config/featureFlags';
+  import { runLocalGodmode, type CandidateResult } from './local-engine';
+  import { chat as gatewayChat, streamChat as gatewayStreamChat } from '$lib/ai/gateway';
 
   type Props = {
     chat: ChatRow;
@@ -50,6 +53,14 @@
   let planned = $state<TechniqueDNA[] | null>(null);
   let runError = $state<{ code: string; message: string } | null>(null);
   let doneAt = $state<number | null>(null);
+
+  // Browser-only Godmode (no Supabase) — surfaced in a separate leaderboard
+  // when the local-engine feature flag is on and the user isn't signed in,
+  // OR Supabase auth isn't configured at all. Edge-function path is preserved
+  // for paid users; this module is the no-auth fallback.
+  let localResults = $state<CandidateResult[] | null>(null);
+  let localRunning = $state(false);
+  let localError = $state<string | null>(null);
 
   // Save-as-technique state.
   let saving = $state(false);
@@ -327,6 +338,58 @@
     (session.supabaseSession !== null && !!session.supabaseSession?.access_token)
   );
 
+  // Local-mode availability — always offered when the feature flag is on.
+  // The local engine runs entirely in-browser via the gateway primitives, so
+  // it works whether or not Supabase auth is configured.
+  const LOCAL_MODE = featureFlags.godmodeLocalEnabled;
+
+  /** Browser-only run path. Picks K candidates via planner LLM, generates
+   *  candidate prompts locally (mutators) or via opener template (strategies),
+   *  streams against target, judges each, and renders a leaderboard.
+   *  This bypass is always available when LOCAL_MODE is true; it does not
+   *  touch the existing edge-function `runGodmode` flow. */
+  async function runLocal() {
+    if (localRunning || !task.trim()) return;
+    localRunning = true;
+    localError = null;
+    localResults = null;
+    const ctrl = new AbortController();
+    try {
+      const results = await runLocalGodmode({
+        task,
+        targetModelId: effectiveModel,
+        plannerModelId: effectiveModel,
+        judgeModelId: effectiveModel,
+        candidatesK: K,
+        signal: ctrl.signal,
+        gatewayChat: async ({ model, messages, maxOutputTokens, signal }) => {
+          const r = await gatewayChat({ model, messages, maxOutputTokens, signal });
+          return { content: r.content };
+        },
+        streamChat: ({ model, messages, signal }) => gatewayStreamChat({ model, messages, signal })
+      });
+      localResults = results;
+    } catch (err) {
+      localError = (err as Error)?.message ?? String(err);
+    } finally {
+      localRunning = false;
+    }
+  }
+
+  async function promoteLocal(r: CandidateResult) {
+    try {
+      await injectGodmodeTurn(chat.id, {
+        task,
+        winningResponse: r.targetReply,
+        winningDna: { id: r.techniqueId, name: r.techniqueName } as unknown as TechniqueDNA,
+        modelId: effectiveModel
+      });
+      onNotify('info', 'Sent to main chat');
+    } catch (err) {
+      onNotify('error', 'Promote failed: ' + String(err));
+    }
+  }
+
   let authLoading = $state(false);
   let authError = $state<string | null>(null);
   async function signInGoogle() {
@@ -352,7 +415,54 @@
 </script>
 
 <div class="flex h-full min-h-0 flex-col gap-3 overflow-y-auto cryptex-scroll p-4">
-  {#if !isSignedIn}
+  {#if !isSignedIn && LOCAL_MODE}
+    <!-- Browser-only Godmode (no auth) — runs the planner -> generate ->
+         parallel-attack -> judge -> leaderboard pipeline entirely in the
+         browser using existing gateway primitives. Always available when
+         the local-engine feature flag is on. -->
+    <div class="rounded-md border border-primary/30 bg-primary/5 p-4 text-xs">
+      <div class="mb-2 flex items-center gap-2">
+        <span class="text-sm font-semibold text-foreground">Browser-only Godmode</span>
+        <span class="rounded bg-primary/20 px-1.5 py-0.5 text-[10px] uppercase text-primary">Local</span>
+      </div>
+      <p class="mb-3 text-muted-foreground leading-relaxed">
+        No sign-in required. The planner picks K techniques from the local registry, runs them in parallel against the target model using your own API keys, and the judge model scores each response. Results sorted by score.
+      </p>
+      <button
+        type="button"
+        onclick={runLocal}
+        disabled={localRunning || !task.trim()}
+        title={!task.trim() ? 'Enter a task first' : 'Run browser-only Godmode'}
+        class="inline-flex h-8 items-center justify-center gap-2 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground disabled:opacity-50"
+      >{localRunning ? 'Running…' : 'Run locally (no sign-in)'}</button>
+      {#if localError}
+        <p class="mt-2 text-[11px] text-destructive">{localError}</p>
+      {/if}
+      {#if localResults}
+        <ul class="mt-3 flex flex-col gap-1">
+          {#each localResults as r}
+            <li class="rounded border border-border/40 bg-background/40 p-2 text-[11px]">
+              <div class="flex items-center justify-between gap-2">
+                <span class="font-medium text-foreground">{r.techniqueName}</span>
+                <span class="font-mono text-muted-foreground">{(r.judgeScore * 100).toFixed(0)}%</span>
+              </div>
+              <p class="mt-1 line-clamp-3 text-muted-foreground">{r.targetReply || (r.error ? `error: ${r.error}` : '(empty)')}</p>
+              {#if r.judgeRationale}
+                <p class="mt-1 text-[10px] text-muted-foreground">judge: {r.judgeRationale}</p>
+              {/if}
+              {#if r.targetReply && !r.error}
+                <button
+                  type="button"
+                  onclick={() => promoteLocal(r)}
+                  class="mt-1 rounded border border-border/40 px-2 py-0.5 text-[10px] hover:bg-muted/40"
+                >Send to chat</button>
+              {/if}
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    </div>
+  {:else if !isSignedIn}
     <!-- Auth unavailable — Godmode hits a paid edge function. Two sub-states:
          (a) Supabase configured → show sign-in buttons
          (b) Supabase not configured → explain + link to dev-bypass flag -->
