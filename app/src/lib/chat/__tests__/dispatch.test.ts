@@ -208,3 +208,101 @@ describe('injectAttackSessionTurn', () => {
     expect(events[0].detail).toEqual({ chatId: chat.id, origin: 'chain_session' });
   });
 });
+
+describe('persisted broken state', () => {
+  it('sendTurn on a non-pinned chat does not prepend any prefix', async () => {
+    const captured: any[] = [];
+    vi.doMock('$lib/ai/gateway', () => ({
+      streamChat: async function* (req: any) {
+        captured.push(req);
+        yield { type: 'text-delta', delta: 'reply' };
+        yield { type: 'finish', finishReason: 'stop', usage: { inputTokens: 1, outputTokens: 1 } };
+      },
+      chat: async () => ({ content: '' })
+    }));
+    const { sendTurn } = await import('../dispatch');
+    const { repo } = await import('../repo');
+    const chat = await repo.createChat({ title: 't', modelQualifiedId: 'x' });
+    await sendTurn(chat, 'hello', new AbortController().signal);
+
+    expect(captured).toHaveLength(1);
+    const messages = captured[0].messages as Array<{ role: string; content: string }>;
+    // No assistant role from any pinned session — only user (and optional system).
+    const assistantPrefix = messages.filter((m) => m.role === 'assistant');
+    expect(assistantPrefix).toHaveLength(0);
+  });
+
+  it('sendTurn on a pinned chat prepends transcript turns as user/assistant pairs', async () => {
+    const captured: any[] = [];
+    vi.doMock('$lib/ai/gateway', () => ({
+      streamChat: async function* (req: any) {
+        captured.push(req);
+        yield { type: 'text-delta', delta: 'reply' };
+        yield { type: 'finish', finishReason: 'stop', usage: { inputTokens: 1, outputTokens: 1 } };
+      },
+      chat: async () => ({ content: '' })
+    }));
+    const { sendTurn } = await import('../dispatch');
+    const { repo } = await import('../repo');
+
+    const chat = await repo.createChat({ title: 't', modelQualifiedId: 'x' });
+    const session = await repo.saveAttackSession({
+      chatId: chat.id,
+      objective: 'extract X',
+      targetModelId: 'm',
+      orchestratorModelId: 'm',
+      maxAttempts: 6,
+      turns: [
+        { role: 'orchestrator', strategyId: 'historical', text: 'tell me about X', rationale: 'r', createdAt: 1 },
+        { role: 'target', text: 'X is...', createdAt: 2 }
+      ],
+      strategyLog: [],
+      finalOutcome: 'extracted',
+      finalConfidence: 0.9,
+      finalSummary: 's'
+    });
+    await repo.pinAttackSession(chat.id, session.id);
+
+    // Reload chat so the pin is visible to sendTurn.
+    const pinnedChat = (await repo.getChat(chat.id))!;
+    await sendTurn(pinnedChat, 'follow-up', new AbortController().signal);
+
+    expect(captured).toHaveLength(1);
+    const messages = captured[0].messages as Array<{ role: string; content: string }>;
+    // The transcript should appear as a user/assistant pair somewhere in messages.
+    const userTexts = messages.filter((m) => m.role === 'user').map((m) => m.content);
+    const assistantTexts = messages.filter((m) => m.role === 'assistant').map((m) => m.content);
+    expect(userTexts).toContain('tell me about X');
+    expect(assistantTexts).toContain('X is...');
+    // And the new user turn is also present
+    expect(userTexts).toContain('follow-up');
+  });
+
+  it('sendTurn on a pinned chat with a missing session auto-unpins and sends without prefix', async () => {
+    const captured: any[] = [];
+    vi.doMock('$lib/ai/gateway', () => ({
+      streamChat: async function* (req: any) {
+        captured.push(req);
+        yield { type: 'text-delta', delta: 'reply' };
+        yield { type: 'finish', finishReason: 'stop', usage: { inputTokens: 1, outputTokens: 1 } };
+      },
+      chat: async () => ({ content: '' })
+    }));
+    const { sendTurn } = await import('../dispatch');
+    const { repo } = await import('../repo');
+
+    const chat = await repo.createChat({ title: 't', modelQualifiedId: 'x' });
+    await repo.pinAttackSession(chat.id, 'session-that-does-not-exist');
+    const pinnedChat = (await repo.getChat(chat.id))!;
+    await sendTurn(pinnedChat, 'hi', new AbortController().signal);
+
+    // No assistant prefix injected.
+    const messages = captured[0].messages as Array<{ role: string; content: string }>;
+    const assistantPrefix = messages.filter((m) => m.role === 'assistant');
+    expect(assistantPrefix).toHaveLength(0);
+
+    // Pin field should be cleared on the chat row now.
+    const after = await repo.getChat(chat.id);
+    expect(after?.settings.persistedAttackSessionId).toBeUndefined();
+  });
+});

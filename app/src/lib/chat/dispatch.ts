@@ -33,6 +33,25 @@ function draftDisplayText(draft: string | ContentPart[]): string {
   return textPart?.text ?? '(image)';
 }
 
+/** Resolve the pinned-session prefix for main-chat sends. Returns an empty
+ *  array when the chat has no pin or the pinned session is missing/deleted.
+ *  In the missing-session case, silently auto-unpins so the next send doesn't
+ *  re-attempt the lookup. */
+async function resolvePinnedPrefix(chat: ChatRow): Promise<ChatMessage[]> {
+  const pinId = chat.settings?.persistedAttackSessionId;
+  if (!pinId) return [];
+  const session = await repo.getAttackSession(pinId);
+  if (!session) {
+    console.warn('[dispatch] pinned session missing, auto-unpinning:', pinId);
+    await repo.unpinAttackSession(chat.id);
+    return [];
+  }
+  return session.turns.map((t) => ({
+    role: t.role === 'orchestrator' ? ('user' as const) : ('assistant' as const),
+    content: t.text
+  }));
+}
+
 export async function sendTurn(
   chat: ChatRow,
   draft: string | ContentPart[],
@@ -195,6 +214,8 @@ export async function sendTurn(
         if (chat.settings.systemPrompt.trim()) {
           providerMessages.push({ role: 'system', content: chat.settings.systemPrompt });
         }
+        const pinnedPrefix = await resolvePinnedPrefix(chat);
+        providerMessages.push(...pinnedPrefix);
         for (const m of history) {
           if (m.role === 'system' || m.role === 'user' || m.role === 'assistant') {
             providerMessages.push({ role: m.role, content: m.content });
@@ -299,6 +320,8 @@ export async function sendTurn(
   if (chat.settings.systemPrompt.trim()) {
     providerMessages.push({ role: 'system', content: chat.settings.systemPrompt });
   }
+  const pinnedPrefix = await resolvePinnedPrefix(chat);
+  providerMessages.push(...pinnedPrefix);
   // Push all history messages except the last one (which is the user message we just saved,
   // stored as plain text). We'll append the real draft content below.
   const historyWithoutLast = history.slice(0, -1);
@@ -549,6 +572,8 @@ export async function continueAssistantMessage(
   if (chat.settings.systemPrompt.trim()) {
     providerMessages.push({ role: 'system', content: chat.settings.systemPrompt });
   }
+  const pinnedPrefix = await resolvePinnedPrefix(chat);
+  providerMessages.push(...pinnedPrefix);
   for (const m of upTo) {
     if (m.role === 'system' || m.role === 'user' || m.role === 'assistant') {
       providerMessages.push({ role: m.role, content: m.content });
