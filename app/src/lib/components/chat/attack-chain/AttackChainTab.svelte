@@ -18,6 +18,7 @@
   import ArrowRight from 'lucide-svelte/icons/arrow-right';
   import Plus from 'lucide-svelte/icons/plus';
   import Info from 'lucide-svelte/icons/info';
+  import Copy from 'lucide-svelte/icons/copy';
   import { base } from '$app/paths';
 
   type Props = {
@@ -106,6 +107,9 @@
   let finalOutcome = $state<AttackSessionRow['finalOutcome']>(null);
   let finalConfidence = $state<number | null>(null);
   let finalSummary = $state<string | null>(null);
+  let finalAnswer = $state<string | null>(null);
+  let finalAnswerConfidence = $state<number | null>(null);
+  let finalAnswerRationale = $state<string | null>(null);
 
   // Live view of current step within current strategy
   let currentStrategyId = $state<string | null>(null);
@@ -157,6 +161,9 @@
     finalOutcome = null;
     finalConfidence = null;
     finalSummary = null;
+    finalAnswer = null;
+    finalAnswerConfidence = null;
+    finalAnswerRationale = null;
 
     const session = await repo.saveAttackSession({
       chatId: chat.id,
@@ -200,7 +207,10 @@
           dossierCitations: liveCitations,
           finalOutcome,
           finalConfidence,
-          finalSummary
+          finalSummary,
+          finalAnswer,
+          finalAnswerConfidence,
+          finalAnswerRationale
         });
       }
     } finally {
@@ -213,7 +223,10 @@
         dossierCitations: liveCitations,
         finalOutcome,
         finalConfidence,
-        finalSummary
+        finalSummary,
+        finalAnswer,
+        finalAnswerConfidence,
+        finalAnswerRationale
       });
       sessions = await repo.listAttackSessions(chat.id);
     }
@@ -275,6 +288,9 @@
         finalOutcome = e.outcome;
         finalConfidence = e.confidence;
         finalSummary = e.summary;
+        finalAnswer = e.finalAnswer;
+        finalAnswerConfidence = e.finalAnswerConfidence;
+        finalAnswerRationale = e.finalAnswerRationale;
         break;
       case 'error':
         console.error('[orchestrator]', e.code, e.message);
@@ -315,6 +331,15 @@
     if (!currentSessionId) return;
     const row = (await repo.listAttackSessions(chat.id)).find((s) => s.id === currentSessionId);
     if (row) await promoteFullSession(row);
+  }
+
+  async function copyFinalAnswer() {
+    if (!finalAnswer) return;
+    try {
+      await navigator.clipboard.writeText(finalAnswer);
+    } catch (err) {
+      console.error('[chain-tab] copy failed:', err);
+    }
   }
 
   function handleObjectiveKey(e: KeyboardEvent) {
@@ -473,6 +498,32 @@
       </div>
       {#if finalSummary}
         <p class="text-[11px] text-muted-foreground leading-relaxed">{finalSummary}</p>
+      {/if}
+      {#if finalOutcome}
+        <div class="mt-3 border-t border-primary/20 pt-2">
+          <div class="mb-1 flex items-center gap-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+            <span>Final answer</span>
+            {#if finalAnswerConfidence !== null}
+              <span class="rounded bg-muted/40 px-1 py-0.5 text-[9px]">conf {finalAnswerConfidence.toFixed(2)}</span>
+            {/if}
+            {#if finalAnswer}
+              <button
+                type="button"
+                onclick={copyFinalAnswer}
+                class="ml-auto rounded p-1 text-muted-foreground hover:bg-muted/40 hover:text-foreground"
+                aria-label="Copy answer"
+              ><Copy size={11} /></button>
+            {/if}
+          </div>
+          {#if finalAnswer}
+            <p class="text-[12px] text-foreground leading-relaxed whitespace-pre-wrap">{finalAnswer}</p>
+          {:else}
+            <p class="text-[11px] italic text-muted-foreground">No answer extracted from this run.</p>
+          {/if}
+          {#if finalAnswerRationale}
+            <p class="mt-1 text-[10px] italic text-muted-foreground">{finalAnswerRationale}</p>
+          {/if}
+        </div>
       {/if}
       <div class="mt-2 flex gap-2">
         <button type="button" onclick={promoteCurrentSession} class="inline-flex items-center gap-1 rounded bg-primary px-2 py-1 text-[10px] text-primary-foreground hover:bg-primary/90"><ArrowRight size={10} /> Send thread to main chat</button>

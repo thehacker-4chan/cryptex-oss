@@ -78,6 +78,12 @@
               {#if row.finalSummary}
                 <div class="mt-1 line-clamp-3 text-[11px] text-foreground">{row.finalSummary}</div>
               {/if}
+              {#if row.finalAnswer}
+                <div class="mt-1 line-clamp-4 rounded bg-primary/5 p-1 text-[11px] text-foreground">
+                  <span class="text-[9px] uppercase tracking-wide text-muted-foreground">Answer</span>
+                  {row.finalAnswer}
+                </div>
+              {/if}
             </div>
           {/if}
         </div>
