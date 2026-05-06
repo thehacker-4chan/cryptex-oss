@@ -19,17 +19,23 @@
   let { children } = $props();
   let historyOpen = $state(false);
 
-  // The Tools rail should stay visible everywhere the user might want to
-  // jump to a workbench from — that includes /guide and /settings now.
-  // We only hide it on auth-form pages (where the user is mid-sign-in and
-  // the form should be the focus) since /chat hides it via chatMode anyway.
+  // The Tools rail stays visible on tool routes + /guide + /settings (places
+  // the user might want to jump back to a workbench from). It's hidden on:
+  //   - auth-form pages (focus on the form, not the rail)
+  //   - legal / content pages (/privacy, /terms, /about) — these are
+  //     read top-to-bottom and the rail just adds noise; users navigate
+  //     away via the ModePill or footer instead.
+  // /chat hides the rail via chatMode='chat' (handled below).
   const hideTabRail = $derived.by(() => {
     const p = page.url?.pathname ?? '';
     const trimmed = p.endsWith('/') ? p.slice(0, -1) : p;
     return (
       trimmed === `${base}/login` ||
       trimmed === `${base}/signup` ||
-      trimmed.startsWith(`${base}/auth/`)
+      trimmed.startsWith(`${base}/auth/`) ||
+      trimmed === `${base}/privacy` ||
+      trimmed === `${base}/terms` ||
+      trimmed === `${base}/about`
     );
   });
 
