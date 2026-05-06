@@ -37,11 +37,11 @@ function makeCtx(overrides: Partial<LocalGodmodeContext> = {}): LocalGodmodeCont
 }
 
 describe('buildCandidatePool', () => {
-  it('combines mutators (>=35, post-R1 + E1 + E2 + E4) and 12 strategies', () => {
+  it('combines mutators (>=36, post-R1 + E1 + E2 + E4 + E5) and 12 strategies', () => {
     const pool = buildCandidatePool();
     const muts = pool.filter((c) => c.kind === 'mutator');
     const strats = pool.filter((c) => c.kind === 'strategy');
-    expect(muts.length).toBeGreaterThanOrEqual(35);
+    expect(muts.length).toBeGreaterThanOrEqual(36);
     expect(strats.length).toBe(12);
   });
 });

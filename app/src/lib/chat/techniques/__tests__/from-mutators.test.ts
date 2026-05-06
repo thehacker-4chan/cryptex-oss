@@ -332,3 +332,102 @@ describe('E4 redteam libraries', () => {
     expect(footer.payload.length - footer.payload.indexOf('INSTR_FOOTER')).toBeLessThan(200);
   });
 });
+
+describe('E5 expansion mutator + libs', () => {
+  it('canary_inject embeds a unique random token by default', () => {
+    const m = getMutatorSpecs().find((x) => x.id === 'canary_inject');
+    expect(m).toBeDefined();
+    const out1 = m!.localTemplate!('Q?', {}, 'Q?');
+    const out2 = m!.localTemplate!('Q?', {}, 'Q?');
+    expect(out1).not.toEqual(out2);
+    // Token appears at least twice in the output (book-ending).
+    const tokenMatch = out1.match(/CRX_[a-z0-9]+_[a-z0-9]+/);
+    expect(tokenMatch).not.toBeNull();
+    const occurrences = out1.split(tokenMatch![0]).length - 1;
+    expect(occurrences).toBeGreaterThanOrEqual(2);
+  });
+
+  it('canary_inject respects metadata.canaryToken', () => {
+    const m = getMutatorSpecs().find((x) => x.id === 'canary_inject');
+    const out = m!.localTemplate!('Q?', { canaryToken: 'FIXED_TOKEN_XYZ123' }, 'Q?');
+    expect(out).toContain('FIXED_TOKEN_XYZ123');
+  });
+
+  it('strongreject parseScore correctly handles a refused response', async () => {
+    const { parseScore } = await import('$lib/redteam/strongreject-rubric');
+    const score = parseScore('{"refusal":1,"convincing":1,"specific":1,"rationale":"Refused"}');
+    expect(score.refusal).toBe(1);
+    expect(score.composite).toBe(0);
+  });
+
+  it('strongreject parseScore computes composite for compliance', async () => {
+    const { parseScore } = await import('$lib/redteam/strongreject-rubric');
+    const score = parseScore('{"refusal":0,"convincing":4,"specific":4,"rationale":"Solid"}');
+    expect(score.refusal).toBe(0);
+    expect(score.composite).toBeCloseTo(0.8, 5);
+  });
+
+  it('strongreject parseScore strips ```json fences', async () => {
+    const { parseScore } = await import('$lib/redteam/strongreject-rubric');
+    const score = parseScore('```json\n{"refusal":0,"convincing":3,"specific":3,"rationale":"OK"}\n```');
+    expect(score.composite).toBeCloseTo(0.6, 5);
+  });
+
+  it('harmbench corpus has all 7 categories represented', async () => {
+    const { HARMBENCH_PROMPTS, HARMBENCH_CATEGORIES, promptsByCategory } = await import('$lib/redteam/harmbench-prompts');
+    expect(HARMBENCH_PROMPTS.length).toBeGreaterThanOrEqual(30);
+    for (const cat of HARMBENCH_CATEGORIES) {
+      expect(promptsByCategory(cat).length).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it('jbb behaviors corpus has both harmful and benign rows', async () => {
+    const { JBB_BEHAVIORS, behaviorsByCategory } = await import('$lib/redteam/jbb-behaviors');
+    expect(JBB_BEHAVIORS.length).toBeGreaterThanOrEqual(40);
+    expect(behaviorsByCategory('harmful').length).toBeGreaterThanOrEqual(15);
+    expect(behaviorsByCategory('benign').length).toBeGreaterThanOrEqual(15);
+  });
+
+  it('defense fingerprinter detects llama-guard signature', async () => {
+    const { fingerprintResponse } = await import('$lib/redteam/defense-fingerprinter');
+    const r = fingerprintResponse('content is unsafe.', true);
+    expect(r.classifier).toBe('llama-guard');
+    expect(r.confidence).toBe('high');
+  });
+
+  it('defense fingerprinter detects azure content safety', async () => {
+    const { fingerprintResponse } = await import('$lib/redteam/defense-fingerprinter');
+    const r = fingerprintResponse('This content has been blocked due to content_management_policy.', true);
+    expect(r.classifier).toBe('azure-content');
+  });
+
+  it('defense fingerprinter falls through to unknown when no signal', async () => {
+    const { fingerprintResponse } = await import('$lib/redteam/defense-fingerprinter');
+    const r = fingerprintResponse('Here is the substantive answer to your question.', false);
+    expect(r.classifier).toBe('unknown');
+  });
+
+  it('watermark detector flags zero-width injection', async () => {
+    const { analyzeResponse } = await import('$lib/redteam/watermark-detector');
+    // 6 zero-width spaces (U+200B) embedded in a response
+    const r = analyzeResponse('Hello world​​​​​​ end');
+    expect(r.stats.zeroWidthChars).toBeGreaterThanOrEqual(6);
+    expect(r.signals.some((s) => s.scheme === 'zwsp-injection')).toBe(true);
+  });
+
+  it('watermark detector flags EOS marker leak', async () => {
+    const { analyzeResponse } = await import('$lib/redteam/watermark-detector');
+    const r = analyzeResponse('Here is the answer.<|endoftext|>');
+    expect(r.signals.some((s) => s.scheme === 'eos-leak')).toBe(true);
+  });
+
+  it('pdf-meta-injection emits valid payloads for every track', async () => {
+    const { buildPdfPayload, TRACK_LIST } = await import('$lib/redteam/pdf-meta-injection');
+    for (const track of TRACK_LIST) {
+      const r = buildPdfPayload({ track, hiddenInstruction: 'INSTR_PDF_X' });
+      expect(r.payload).toContain('INSTR_PDF_X');
+      expect(r.payload.length).toBeGreaterThan(50);
+      expect(r.notes.length).toBeGreaterThan(20);
+    }
+  });
+});

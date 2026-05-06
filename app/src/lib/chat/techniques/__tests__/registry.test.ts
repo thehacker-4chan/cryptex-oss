@@ -7,19 +7,19 @@ describe('technique registry', () => {
     expect(t.length).toBeGreaterThan(100); // we expect 162 but registry may filter
   });
 
-  it('contains exactly the 35 PromptCraft mutators (post-R1 + E1 + E2 + E4)', () => {
+  it('contains exactly the 36 PromptCraft mutators (post-R1 + E1 + E2 + E4 + E5)', () => {
     const m = byCategory('mutate');
     expect(m.map(x => x.id).sort()).toEqual(
       [
-        'adv_suffix', 'best_of_k', 'chain_of_verification', 'cipher_encode_bypass',
-        'code_completion_frame', 'cot_distractor', 'cot_prefill', 'ctf_framing',
-        'custom', 'doc_injection', 'fragment', 'glitch_token',
-        'hypothetical_world', 'image_typographic', 'many_shot', 'markdown_exfil',
-        'multilingual', 'obfuscate', 'pap_authority', 'pap_logical',
-        'payload_split', 'reasoning_inversion', 'red_team_persona', 'rephrase',
-        'rfc_style', 'roleplay', 'stack_trace_frame', 'step_back',
-        'sysprompt_extract', 'tap_seeder', 'temperature_ladder', 'thinking_steal',
-        'tool_arg_hijack', 'tool_desc_rewrite', 'url_payload_smuggle'
+        'adv_suffix', 'best_of_k', 'canary_inject', 'chain_of_verification',
+        'cipher_encode_bypass', 'code_completion_frame', 'cot_distractor', 'cot_prefill',
+        'ctf_framing', 'custom', 'doc_injection', 'fragment',
+        'glitch_token', 'hypothetical_world', 'image_typographic', 'many_shot',
+        'markdown_exfil', 'multilingual', 'obfuscate', 'pap_authority',
+        'pap_logical', 'payload_split', 'reasoning_inversion', 'red_team_persona',
+        'rephrase', 'rfc_style', 'roleplay', 'stack_trace_frame',
+        'step_back', 'sysprompt_extract', 'tap_seeder', 'temperature_ladder',
+        'thinking_steal', 'tool_arg_hijack', 'tool_desc_rewrite', 'url_payload_smuggle'
       ].sort()
     );
   });
@@ -101,9 +101,9 @@ describe('technique registry', () => {
     expect(comp.every(x => x.local === false)).toBe(true);
   });
 
-  it('allTechniques total is >= 204 (transformers + 35 mutators + 8 classifier + 4 composites + 3 modes + 1 godmode)', () => {
+  it('allTechniques total is >= 205 (transformers + 36 mutators + 8 classifier + 4 composites + 3 modes + 1 godmode)', () => {
     // transformer count is ~159-162 depending on env; test just verifies sum is plausible
-    expect(allTechniques().length).toBeGreaterThanOrEqual(204);
+    expect(allTechniques().length).toBeGreaterThanOrEqual(205);
   });
 
   it('every production local-template mutator produces >=100 chars of substantive context around a short input', () => {
