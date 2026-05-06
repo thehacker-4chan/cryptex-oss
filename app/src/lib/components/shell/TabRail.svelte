@@ -14,6 +14,8 @@
   import Shield from 'lucide-svelte/icons/shield';
   import Skull from 'lucide-svelte/icons/skull';
   import Zap from 'lucide-svelte/icons/zap';
+  import ImageIcon from 'lucide-svelte/icons/image';
+  import Link from 'lucide-svelte/icons/link';
   import { onMount, tick } from 'svelte';
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -30,8 +32,10 @@
     { href: '/fuzzer',               label: 'Fuzzer',       icon: FlaskConical,   status: 'live' },
     { href: '/promptcraft',          label: 'PromptCraft',  icon: Sparkles,       status: 'live' },
     { href: '/anticlassifier',       label: 'Anti-classifier', icon: Shield,      status: 'live' },
-    { href: '/redteam/adv-suffix',    label: 'AdvSuffix',    icon: Skull,          status: 'live' },
-    { href: '/redteam/glitch-tokens', label: 'Glitch',       icon: Zap,            status: 'live' }
+    { href: '/redteam/adv-suffix',     label: 'AdvSuffix',    icon: Skull,         status: 'live' },
+    { href: '/redteam/glitch-tokens',  label: 'Glitch',       icon: Zap,           status: 'live' },
+    { href: '/redteam/ocr-injection',  label: 'OCR Inject',   icon: ImageIcon,     status: 'live' },
+    { href: '/redteam/markdown-exfil', label: 'MD Exfil',     icon: Link,          status: 'live' }
   ];
 
   let list: HTMLOListElement | undefined = $state();
