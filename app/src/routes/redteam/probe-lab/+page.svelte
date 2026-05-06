@@ -41,6 +41,16 @@
     }));
   });
 
+  // Mutators that exist in the registry but get skipped because they don't
+  // expose a localTemplate (e.g. tap_seeder, many_shot — those need an
+  // LLM round-trip to generate the variant). Surfaced in the UI so users
+  // know why the leaderboard is shorter than the full mutator catalog.
+  const skippedMutators = $derived.by(() => {
+    return mutatorTechniques().filter(
+      (m) => m.id !== 'custom' && typeof m.localTemplate !== 'function'
+    );
+  });
+
   async function runProbe() {
     if (!task.trim()) {
       errorMsg = 'Enter a task to probe.';
@@ -155,6 +165,12 @@
           <span>Probes ready</span>
           <span class="font-mono text-foreground">{candidates.length}</span>
         </div>
+        {#if skippedMutators.length > 0}
+          <p class="mb-2 text-[10px] leading-snug text-muted-foreground">
+            {skippedMutators.length} mutator{skippedMutators.length === 1 ? '' : 's'} need an LLM round-trip and aren't probed locally:
+            <span class="font-mono text-[10px]">{skippedMutators.map((m) => m.id).join(', ')}</span>
+          </p>
+        {/if}
         {#if running}
           <div class="mb-2 text-xs text-muted-foreground">
             <span>Progress</span>

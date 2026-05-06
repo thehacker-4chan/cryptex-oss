@@ -5,10 +5,11 @@ import { unwrap } from '$lib/ai/prompt-scaffold';
  * Composite techniques that compose other techniques. Each runs N sub-LLM calls in
  * sequence — documented cost + latency tradeoff, user opt-in only.
  *
- * Composite default chains:
- * - layered_mutation: academic_framing -> perplexity_raise -> structural_variation
+ * Composite default chains (kept in sync with the LAYERED_CHAIN /
+ * MULTI_LAYER_CHAIN constants below):
+ * - layered_mutation: academic_framing -> perplexity_raise -> circumlocution
  *   (the AI-writing-detection lift stack; overridable via ctx.metadata.chain)
- * - multi_layer_attack: roleplay -> hypothetical_world -> prefix_injection
+ * - multi_layer_attack: roleplay -> hypothetical_world -> red_team_persona
  *   (the literary-frame lift stack; overridable via ctx.metadata.chain)
  *
  * Both honor a smart merge: when ctx.metadata.chain is provided, it fully
@@ -126,7 +127,7 @@ export function compositeTechniques(): Technique[] {
     {
       id: 'layered_mutation',
       name: 'Layered mutation',
-      description: 'Applies academic_framing -> perplexity_raise -> structural_variation in sequence (ctx.metadata.chain overrides).',
+      description: 'Applies academic_framing -> perplexity_raise -> circumlocution in sequence (ctx.metadata.chain overrides).',
       category: 'composite' as const,
       local: false,
       apply: async (input: string, ctx: TechniqueContext) => {
@@ -152,7 +153,7 @@ export function compositeTechniques(): Technique[] {
     {
       id: 'multi_layer_attack',
       name: 'Multi-layer attack',
-      description: 'Composes enhanced literary-frame techniques (roleplay -> hypothetical_world -> prefix_injection) — highest documented compliance lift across 2026 model families.',
+      description: 'Composes enhanced literary-frame techniques (roleplay -> hypothetical_world -> red_team_persona) — highest documented compliance lift across 2026 model families.',
       category: 'composite' as const,
       local: false,
       apply: async (input: string, ctx: TechniqueContext) => {

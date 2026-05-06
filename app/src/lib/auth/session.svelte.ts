@@ -253,6 +253,36 @@ export const session = {
     _vaultKey = null;
   },
 
+  /**
+   * Sign out of EVERY device this account is logged in on (revokes all
+   * refresh tokens server-side via Supabase). Use this on sensitive
+   * actions like password change or after suspected credential leak.
+   * `local` only signs out current tab; `global` revokes everywhere.
+   */
+  async signOutAllDevices(): Promise<void> {
+    if (!supabase) return;
+    await supabase.auth.signOut({ scope: 'global' });
+    _vaultKey = null;
+  },
+
+  /**
+   * Trigger an email-address change. Supabase sends a confirmation email
+   * to the NEW address with a 6-digit OTP. Caller follows up with
+   * `verifyEmailOtp(newEmail, code, 'email_change')` after the user
+   * pastes the code.
+   *
+   * Uses signed-in update — caller must be signed in. Re-auth (current
+   * password verification) is the caller's responsibility before invoking.
+   */
+  async requestEmailChange(newEmail: string): Promise<void> {
+    if (!supabase) throw new Error('Auth not enabled');
+    if (!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+      throw new Error('Enter a valid email address.');
+    }
+    const { error } = await supabase.auth.updateUser({ email: newEmail });
+    if (error) throw error;
+  },
+
   /** @deprecated v1 no-op kept so any stragglers calling `login()` still work. */
   async login(): Promise<void> { /* v1 no-op */ },
   /** @deprecated Legacy alias for `signOut()` when flag is on; no-op when off. */

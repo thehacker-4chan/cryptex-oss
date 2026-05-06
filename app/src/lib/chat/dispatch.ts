@@ -217,6 +217,11 @@ export async function sendTurn(
         const pinnedPrefix = await resolvePinnedPrefix(chat);
         providerMessages.push(...pinnedPrefix);
         for (const m of history) {
+          // /btw messages are out-of-context by contract — they're persisted
+          // (for the dataset) but excluded from the LLM context window. Skip
+          // both the user /btw entry AND its assistant reply (which carries
+          // the same modeApplied tag).
+          if (m.modeApplied === 'btw') continue;
           if (m.role === 'system' || m.role === 'user' || m.role === 'assistant') {
             providerMessages.push({ role: m.role, content: m.content });
           }
@@ -324,8 +329,10 @@ export async function sendTurn(
   providerMessages.push(...pinnedPrefix);
   // Push all history messages except the last one (which is the user message we just saved,
   // stored as plain text). We'll append the real draft content below.
+  // /btw messages stay out of the LLM context per their contract.
   const historyWithoutLast = history.slice(0, -1);
   for (const m of historyWithoutLast) {
+    if (m.modeApplied === 'btw') continue;
     if (m.role === 'system' || m.role === 'user' || m.role === 'assistant') {
       providerMessages.push({ role: m.role, content: m.content });
     }
