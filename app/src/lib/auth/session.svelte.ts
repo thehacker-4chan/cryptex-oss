@@ -150,9 +150,32 @@ export const session = {
     if (error) throw error;
   },
 
+  /**
+   * @deprecated Magic-link sign-in is disabled in the UI for v1. Kept on
+   * the session so deferred re-enablement is a config flip rather than a
+   * code change. Currently only used internally by the OTP-resend paths
+   * which call it as the lowest-friction "send another email" trigger.
+   */
   async signInWithMagicLink(email: string): Promise<void> {
     if (!supabase) throw new Error('Auth not enabled');
     const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: `${window.location.origin}${base}/auth/callback` }
+    });
+    if (error) throw error;
+  },
+
+  /**
+   * Resend the signup confirmation email (with a fresh OTP code) for an
+   * existing-but-unconfirmed account. Purpose-built for the post-signup
+   * "Send a new code" UI; uses Supabase's `resend({type: 'signup'})` API
+   * which targets the signup-confirmation flow specifically rather than
+   * starting a new magic-link flow.
+   */
+  async resendSignupOtp(email: string): Promise<void> {
+    if (!supabase) throw new Error('Auth not enabled');
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
       email,
       options: { emailRedirectTo: `${window.location.origin}${base}/auth/callback` }
     });
