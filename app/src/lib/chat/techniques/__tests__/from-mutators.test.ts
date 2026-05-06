@@ -246,3 +246,89 @@ describe('E2 redteam libraries', () => {
     expect(r.payload).toContain('fixed_tok_abc');
   });
 });
+
+describe('E4 expansion mutators (tool-call + indirect injection)', () => {
+  for (const id of ['tool_arg_hijack', 'tool_desc_rewrite', 'url_payload_smuggle']) {
+    it(`mutator ${id} exists with localTemplate that includes input verbatim`, () => {
+      const m = getMutatorSpecs().find((x) => x.id === id);
+      expect(m, `mutator ${id} should be registered`).toBeDefined();
+      const out = m!.localTemplate!('CANARY_INPUT_E4', {}, 'CANARY_INPUT_E4');
+      expect(out).toContain('CANARY_INPUT_E4');
+      expect(out.length).toBeGreaterThanOrEqual(100);
+    });
+  }
+
+  it('tool_arg_hijack embeds metadata.hiddenInstruction inside JSON args', () => {
+    const m = getMutatorSpecs().find((x) => x.id === 'tool_arg_hijack');
+    const out = m!.localTemplate!('Q?', { hiddenInstruction: 'CUSTOM_X', toolName: 'shell_exec' }, 'Q?');
+    expect(out).toContain('CUSTOM_X');
+    expect(out).toContain('shell_exec');
+  });
+
+  it('tool_desc_rewrite injects an AUTHORITATIVE description override', () => {
+    const m = getMutatorSpecs().find((x) => x.id === 'tool_desc_rewrite');
+    const out = m!.localTemplate!('Q?', { toolName: 'web_search' }, 'Q?');
+    expect(out).toMatch(/AUTHORITATIVE/);
+    expect(out).toContain('web_search');
+    expect(out).toMatch(/TOOL DEFINITION UPDATE/);
+  });
+
+  it('url_payload_smuggle supports multiple encoding modes', () => {
+    const m = getMutatorSpecs().find((x) => x.id === 'url_payload_smuggle');
+    const urlEnc = m!.localTemplate!('Q?', { encoding: 'urlencode', hiddenInstruction: 'AAA' }, 'Q?');
+    expect(urlEnc).toMatch(/context=AAA/);
+    const fragEnc = m!.localTemplate!('Q?', { encoding: 'fragment', hiddenInstruction: 'BBB' }, 'Q?');
+    expect(fragEnc).toMatch(/agent-directive=BBB/);
+    const plainEnc = m!.localTemplate!('Q?', { encoding: 'plain', hiddenInstruction: 'CCC' }, 'Q?');
+    expect(plainEnc).toMatch(/agent_directive=CCC/);
+    // base64 just verifies the URL has a base path
+    const b64 = m!.localTemplate!('Q?', { encoding: 'base64', hiddenInstruction: 'DDD' }, 'Q?');
+    expect(b64).toMatch(/example\.test\/article\//);
+  });
+});
+
+describe('E4 redteam libraries', () => {
+  it('tool-injection buildToolPayload returns valid payloads for every kind+provider', async () => {
+    const { buildToolPayload } = await import('$lib/redteam/tool-injection');
+    const kinds: Array<'tool-result-injection' | 'tool-desc-rewrite' | 'tool-arg-coerce'> = [
+      'tool-result-injection',
+      'tool-desc-rewrite',
+      'tool-arg-coerce'
+    ];
+    const providers: Array<'openai' | 'anthropic' | 'generic'> = ['openai', 'anthropic', 'generic'];
+    for (const kind of kinds) {
+      for (const provider of providers) {
+        const r = buildToolPayload({
+          kind,
+          provider,
+          toolName: 'web_search',
+          hiddenInstruction: 'INSTR_X'
+        });
+        expect(r.payload.length).toBeGreaterThan(20);
+        expect(r.payload).toContain('INSTR_X');
+        expect(r.notes.length).toBeGreaterThan(20);
+      }
+    }
+  });
+
+  it('indirect-injection buildIndirectPayload returns valid payloads for every kind', async () => {
+    const { buildIndirectPayload, KIND_LIST } = await import('$lib/redteam/indirect-injection');
+    for (const kind of KIND_LIST) {
+      const r = buildIndirectPayload({ kind, hiddenInstruction: 'INSTR_X' });
+      expect(r.payload.length).toBeGreaterThan(50);
+      expect(r.payload).toContain('INSTR_X');
+      expect(r.notes.length).toBeGreaterThan(20);
+      expect(r.hint.length).toBeGreaterThan(20);
+    }
+  });
+
+  it('indirect-injection respects placement option', async () => {
+    const { buildIndirectPayload } = await import('$lib/redteam/indirect-injection');
+    const header = buildIndirectPayload({ kind: 'web-article', hiddenInstruction: 'INSTR_HEADER', placement: 'header' });
+    const footer = buildIndirectPayload({ kind: 'web-article', hiddenInstruction: 'INSTR_FOOTER', placement: 'footer' });
+    // Header version: instruction appears near top.
+    expect(header.payload.indexOf('INSTR_HEADER')).toBeLessThan(200);
+    // Footer version: instruction appears near bottom.
+    expect(footer.payload.length - footer.payload.indexOf('INSTR_FOOTER')).toBeLessThan(200);
+  });
+});

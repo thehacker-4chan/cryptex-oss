@@ -20,6 +20,8 @@
   import GitCompare from 'lucide-svelte/icons/git-compare';
   import History from 'lucide-svelte/icons/history';
   import Activity from 'lucide-svelte/icons/activity';
+  import Wrench from 'lucide-svelte/icons/wrench';
+  import FileText from 'lucide-svelte/icons/file-text';
   import { onMount, tick } from 'svelte';
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -42,8 +44,10 @@
     { href: '/redteam/markdown-exfil',   label: 'MD Exfil',   icon: Link,          status: 'live' },
     { href: '/redteam/probe-lab',        label: 'Probe Lab',  icon: Beaker,        status: 'live' },
     { href: '/redteam/cross-model-diff', label: 'Cross-Diff', icon: GitCompare,    status: 'live' },
-    { href: '/redteam/replayer',         label: 'Replayer',   icon: History,       status: 'live' },
-    { href: '/redteam/aggregation',      label: 'Aggregate',  icon: Activity,      status: 'live' }
+    { href: '/redteam/replayer',          label: 'Replayer',   icon: History,       status: 'live' },
+    { href: '/redteam/aggregation',       label: 'Aggregate',  icon: Activity,      status: 'live' },
+    { href: '/redteam/tool-result-lab',   label: 'Tool Lab',   icon: Wrench,        status: 'live' },
+    { href: '/redteam/indirect-injection', label: 'Indirect',  icon: FileText,      status: 'live' }
   ];
 
   let list: HTMLOListElement | undefined = $state();
