@@ -162,20 +162,45 @@
     <p class="text-muted-foreground">Auth is disabled in this build.</p>
   </div>
 {:else}
-  <div class="mx-auto mt-12 flex max-w-md flex-col items-center gap-6 px-6 sm:mt-20">
-    <Logo size={40} />
-    <div class="text-center">
-      <h1 class="font-serif text-3xl tracking-tight">
-        {success ? 'Check your inbox' : 'Create your account'}
-      </h1>
-      <p class="mt-2 text-sm text-muted-foreground">
-        {success
-          ? 'We sent a confirmation link to your email.'
-          : 'Free — your keys stay on your device.'}
+  <div class="relative mx-auto mt-8 grid w-full max-w-5xl gap-8 px-6 sm:mt-14 lg:mt-16 lg:grid-cols-[1fr_minmax(360px,420px)] lg:items-center">
+    <!-- Left: brand + value prop. Hidden on mobile so the form takes priority. -->
+    <aside class="hidden lg:flex lg:flex-col lg:gap-5">
+      <a href="{base}/" class="flex items-center gap-2.5 transition-opacity hover:opacity-85">
+        <Logo size={28} />
+        <span class="font-serif text-lg tracking-tight">Cryptex</span>
+      </a>
+      <h2 class="font-serif text-3xl tracking-tight text-balance">
+        Sign up to <span class="text-primary italic">study</span> language models.
+      </h2>
+      <p class="max-w-md text-[14px] leading-relaxed text-muted-foreground">
+        Free account, no card. We only store your email — chats stay in your browser.
       </p>
-    </div>
+      <ul class="space-y-2 text-[13px] text-muted-foreground">
+        <li class="flex items-start gap-2"><span class="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-primary"></span><span>26 specialized red-team workbenches.</span></li>
+        <li class="flex items-start gap-2"><span class="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-primary"></span><span>162 transforms + 36 mutators, all browser-side.</span></li>
+        <li class="flex items-start gap-2"><span class="mt-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-primary"></span><span>BYOK — your provider keys never leave your device.</span></li>
+      </ul>
+    </aside>
 
-    <div class="w-full rounded-2xl border border-border/60 bg-card/60 p-6 shadow-sm backdrop-blur-sm">
+    <!-- Right: form column -->
+    <div class="flex flex-col items-center gap-5">
+      <div class="flex flex-col items-center gap-2 lg:hidden">
+        <Logo size={32} />
+        <span class="font-serif text-xl tracking-tight">Cryptex</span>
+      </div>
+
+      <div class="text-center lg:text-left lg:self-stretch">
+        <h1 class="font-serif text-2xl tracking-tight sm:text-3xl">
+          {success ? 'Verify your email' : 'Create your account'}
+        </h1>
+        <p class="mt-1.5 text-[13px] text-muted-foreground">
+          {success
+            ? 'We sent a 6-digit code to your email.'
+            : 'Free — your keys stay on your device.'}
+        </p>
+      </div>
+
+      <div class="w-full rounded-2xl border border-border/60 bg-card/60 p-5 shadow-sm backdrop-blur-sm">
       {#if success}
         <form
           onsubmit={(e) => { e.preventDefault(); void verifyOtp(); }}
@@ -371,8 +396,9 @@
       {/if}
     </div>
 
-    <p class="text-xs text-muted-foreground">
-      Already have an account? <a href="{base}/login" class="font-medium text-foreground underline-offset-4 hover:underline">Sign in</a>
-    </p>
+      <p class="text-[12px] text-muted-foreground">
+        Already have an account? <a href="{base}/login" class="font-medium text-foreground underline-offset-4 hover:underline">Sign in</a>
+      </p>
+    </div>
   </div>
 {/if}
