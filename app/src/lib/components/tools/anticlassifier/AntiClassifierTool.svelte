@@ -13,6 +13,7 @@
   import Copy from 'lucide-svelte/icons/copy';
   import Loader from 'lucide-svelte/icons/loader-circle';
   import NoProviderBanner from '$lib/components/ai/NoProviderBanner.svelte';
+  import UsageCard from '$lib/components/shell/UsageCard.svelte';
   import { anticlassifierState } from './anticlassifier.state.svelte';
   import ErrorBanner from '$lib/components/ai/ErrorBanner.svelte';
   import { GatewayError } from '$lib/ai/types';
@@ -119,7 +120,7 @@
   <NoProviderBanner context="tool" />
 
   <div class="grid gap-4 lg:grid-cols-[320px_1fr]">
-    <div class="space-y-3 rounded-xl border border-border bg-card/60 p-4 shadow-glass">
+    <div class="space-y-3 rounded-xl border border-border bg-card/60 p-4 shadow-glass lg:sticky lg:top-20 lg:self-start">
       <ModelPickerV2
         value={modelPref.value}
         onChange={(v) => (modelPref.value = v)}
@@ -165,6 +166,17 @@
       {:else if errorMsg}
         <p class="text-xs text-destructive">{errorMsg}</p>
       {/if}
+
+      <UsageCard
+        title="Usage"
+        bullets={[
+          'Paste a research-style prompt the target classifier flags.',
+          'Higher temperature → more variance in paraphrase shape.',
+          'Output stays semantically equivalent — just rewritten.',
+          'Re-run several times to assemble an evasion bank.'
+        ]}
+        note="Best paired with the Cross-Model Diff tab to compare classifier signal across models."
+      />
     </div>
 
     <div class="grid gap-4 lg:grid-cols-2">

@@ -11,6 +11,7 @@
   import Download from 'lucide-svelte/icons/download';
   import Sparkles from 'lucide-svelte/icons/sparkles';
   import { bijectionState } from './bijection.state.svelte';
+  import UsageCard from '$lib/components/shell/UsageCard.svelte';
 
   const s = bijectionState;
 
@@ -88,7 +89,7 @@
   </header>
 
   <div class="grid gap-4 lg:grid-cols-[320px_1fr]">
-    <div class="space-y-3 rounded-xl border border-border bg-card/60 p-4 shadow-glass">
+    <div class="space-y-3 rounded-xl border border-border bg-card/60 p-4 shadow-glass lg:sticky lg:top-20 lg:self-start">
       <h2 class="font-serif text-sm">Mapping</h2>
       <label class="block space-y-1">
         <span class="text-xs text-muted-foreground">Type</span>
@@ -143,6 +144,16 @@
           Regen
         </button>
       </div>
+
+      <UsageCard
+        title="Usage"
+        bullets={[
+          'Generates char→token bijections wrapped in a teaching prompt.',
+          'Budget controls how many variants per run.',
+          'Larger fixed-size = more leading chars un-mapped (lower noise).',
+          'Use Shuffle to permute the same mapping; Regen for a new one.'
+        ]}
+      />
     </div>
 
     <div class="space-y-3 rounded-xl border border-border bg-card/60 p-4 shadow-glass">

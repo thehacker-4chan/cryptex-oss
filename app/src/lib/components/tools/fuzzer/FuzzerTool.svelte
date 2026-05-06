@@ -6,6 +6,7 @@
   import Copy from 'lucide-svelte/icons/copy';
   import Download from 'lucide-svelte/icons/download';
   import { fuzzerState } from './fuzzer.state.svelte';
+  import UsageCard from '$lib/components/shell/UsageCard.svelte';
 
   const s = fuzzerState;
 
@@ -84,7 +85,7 @@
   </header>
 
   <div class="grid gap-4 lg:grid-cols-[320px_1fr]">
-    <div class="space-y-3 rounded-xl border border-border bg-card/60 p-4 shadow-glass">
+    <div class="space-y-3 rounded-xl border border-border bg-card/60 p-4 shadow-glass lg:sticky lg:top-20 lg:self-start">
       <h2 class="font-serif text-sm">Strategies</h2>
       <div class="space-y-1.5">
         {#each toggles as t (t.key)}
@@ -118,6 +119,16 @@
       >
         <FlaskConical size={14} /> Generate variants
       </button>
+
+      <UsageCard
+        title="Usage"
+        bullets={[
+          'Toggle strategies; variants count controls how many come out.',
+          'Each variant tagged with the strategies that produced it.',
+          'Seeded — same seed + same strategies → same outputs.',
+          'Pipe variants into PromptCraft or HarmBench for scoring.'
+        ]}
+      />
     </div>
 
     <div class="space-y-3 rounded-xl border border-border bg-card/60 p-4 shadow-glass">

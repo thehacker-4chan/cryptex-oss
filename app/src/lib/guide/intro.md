@@ -7,33 +7,47 @@ order: 1
 
 # Cryptex
 
-Cryptex is an AI red-team research platform. The target audience is security
-researchers, red-teamers, and prompt engineers evaluating LLM robustness
-against adversarial text. Everything runs in the browser against your own
-provider keys.
+Cryptex is an AI red-team research platform built for security researchers,
+red-teamers, and prompt engineers evaluating LLM robustness against
+adversarial text. Everything runs in your browser against your own
+provider keys — no server, no telemetry, no account required for the
+offline tools.
 
-## Pillars
+## What's in the box (post-2026 expansion)
 
-- **Chat + Attack Chain** — full multi-provider chat playground. 35 slash
-  techniques, composable Attack Chain with auto-retry, every run persisted
-  for dataset export. The hero surface of the app.
-- **Tools** — specialized workbenches. Transform (162 text transformers),
-  Decode (universal detector), PromptCraft (variant generation),
-  Anti-Classifier (detection-evasion rewrites), Translate (low-resource
-  multilingual bypass).
-- **Dataset** — every chat, every Attack Chain trace, every tool call
-  browsable and exportable as ShareGPT or raw JSONL.
+- **162 transforms** — Caesar, ROT, Base64, Unicode lookalikes, emoji
+  steganography, invisible-character smuggling, the works. One canonical
+  source shared by the web app, the legacy build, and the Python CLI.
+- **36 mutators** — single-prompt rewriters covering the full 2024–2026
+  literature: roleplay, payload-split, PAP (logical / authority),
+  many-shot, TAP-seeder, best-of-K, temperature-ladder, image-typographic,
+  and more. Slash-addressable in chat (`/many_shot`, `/tap_seeder`, …).
+- **26 red-team workbenches** — adversarial-suffix lab (GCG / AutoDAN /
+  PAIR / TAP), glitch-token explorer, OCR injection, markdown exfil,
+  cross-model diff, replayer, fingerprinter, watermark detector,
+  HarmBench / StrongREJECT / JBB benchmarks, PDF metadata injection,
+  and more.
+- **Chat + Attack Chain** — full multi-provider chat playground with
+  composable chains, auto-retry, and every run persisted for dataset
+  export.
+- **Dataset** — every chat, every chain trace, every tool call browsable
+  and exportable as ShareGPT or raw JSONL.
 
 ## Use it for
 
 - Evaluating refusal boundaries on a target model you own or have
   authorization to test.
-- Generating prompt banks for automated eval harnesses.
+- Building prompt banks for automated eval harnesses.
 - Stress-testing content classifiers (AI-writing detectors,
   moderation APIs, image-gen tokenizers).
 - Analyzing obfuscated traffic pulled from AI assistants.
 - CTF-style cipher puzzles where layered encodings need to be unwound.
 
-Start with [getting started](/guide/getting-started/). For technique depth
-jump straight to the [technique catalog](/guide/technique-catalog/). For
-attack strategy read [orchestrating jailbreaks](/guide/orchestrating-jailbreaks/).
+## Where to start
+
+- New here? → [Getting started](/guide/getting-started/) — four steps
+  from zero to a running chain.
+- Want technique depth? → [Technique catalog](/guide/technique-catalog/)
+- Strategy guide? → [Orchestrating jailbreaks](/guide/orchestrating-jailbreaks/)
+- Just want to play? → Skip the guide, hit any tool in the rail. They
+  all work without sign-in.

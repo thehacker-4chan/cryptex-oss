@@ -12,6 +12,7 @@
   import Shuffle from 'lucide-svelte/icons/shuffle';
   import Scissors from 'lucide-svelte/icons/scissors';
   import BookOpen from 'lucide-svelte/icons/book-open';
+  import UsageCard from '$lib/components/shell/UsageCard.svelte';
 
   const s = gibberishState;
 
@@ -98,14 +99,27 @@
 </svelte:head>
 
 <section class="space-y-6">
-  <header class="space-y-2">
-    <h1 class="font-serif text-3xl sm:text-4xl tracking-tight text-balance">
-      Gibberish <span class="text-primary italic">lab</span>
-    </h1>
-    <p class="text-muted-foreground max-w-2xl text-sm sm:text-base">
-      Generate consistent dictionary-mapped gibberish, or strip characters from text to produce puzzle
-      variants. Seeded for reproducibility, deterministic across runs.
-    </p>
+  <header class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div class="space-y-2">
+      <h1 class="font-serif text-3xl sm:text-4xl tracking-tight text-balance">
+        Gibberish <span class="text-primary italic">lab</span>
+      </h1>
+      <p class="text-muted-foreground max-w-2xl text-sm sm:text-base">
+        Generate consistent dictionary-mapped gibberish, or strip characters from text to produce puzzle
+        variants. Seeded for reproducibility, deterministic across runs.
+      </p>
+    </div>
+    <div class="lg:w-72 lg:shrink-0">
+      <UsageCard
+        title="Usage"
+        bullets={[
+          'Dictionary mode → consistent char→token substitution.',
+          'Removal mode → strips chars to produce puzzle variants.',
+          'Seed makes runs reproducible across sessions.',
+          'Useful for low-resource bypass and CTF-style puzzles.'
+        ]}
+      />
+    </div>
   </header>
 
   <!-- Top-level mode switch: dictionary vs removal -->

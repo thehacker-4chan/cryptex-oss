@@ -16,6 +16,7 @@
   import Loader from 'lucide-svelte/icons/loader-circle';
   import ArrowUp from 'lucide-svelte/icons/arrow-up';
   import NoProviderBanner from '$lib/components/ai/NoProviderBanner.svelte';
+  import UsageCard from '$lib/components/shell/UsageCard.svelte';
   import { promptcraftState } from './promptcraft.state.svelte';
   import ErrorBanner from '$lib/components/ai/ErrorBanner.svelte';
   import { GatewayError } from '$lib/ai/types';
@@ -145,7 +146,7 @@
 
   <div class="grid gap-4 lg:grid-cols-[320px_1fr]">
     <!-- Strategies + Model -->
-    <div class="space-y-3 rounded-xl border border-border bg-card/60 p-4 shadow-glass">
+    <div class="space-y-3 rounded-xl border border-border bg-card/60 p-4 shadow-glass lg:sticky lg:top-20 lg:self-start">
       <h2 class="font-serif text-sm">Technique</h2>
       <Combobox
         value={s.strategy}
@@ -223,6 +224,17 @@
       {:else if errorMsg}
         <p class="text-xs text-destructive">{errorMsg}</p>
       {/if}
+
+      <UsageCard
+        title="Usage"
+        bullets={[
+          '36 mutators + 4 composites — search by name or description.',
+          'Variants ≥ 3 → catches model variance per technique.',
+          'Click any variant to copy or pull back into input.',
+          '/btw, /custom, /tap_seeder all selectable here too.'
+        ]}
+        note="Use this for offline prompt-bank generation; pipe outputs into HarmBench / StrongREJECT for scoring."
+      />
     </div>
 
     <!-- Input + outputs -->

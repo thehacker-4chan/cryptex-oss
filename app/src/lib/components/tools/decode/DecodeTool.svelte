@@ -10,6 +10,7 @@
   import Loader2 from 'lucide-svelte/icons/loader-circle';
   import Sparkles from 'lucide-svelte/icons/sparkles';
   import { decodeState } from './decode.state.svelte';
+  import UsageCard from '$lib/components/shell/UsageCard.svelte';
 
   const s = decodeState;
   let result = $state<DecodeResult | null>(null);
@@ -89,8 +90,21 @@
     </p>
   </header>
 
-  <div class="grid gap-4 lg:grid-cols-2">
-    <!-- Input -->
+  <div class="grid gap-4 lg:grid-cols-[260px_1fr]">
+    <aside class="lg:sticky lg:top-20 lg:self-start space-y-3">
+      <UsageCard
+        title="Usage"
+        bullets={[
+          'Paste suspicious-looking text — Base64, ROT, binary, emoji, ZWSP.',
+          'Auto-debounced 180ms after typing stops.',
+          'Click an alternative to view it in the result pane.',
+          'Re-decode chains the result back into the input for layered ciphers.'
+        ]}
+        note="No round-trip — every detector runs locally in your browser."
+      />
+    </aside>
+
+    <div class="grid gap-4 lg:grid-cols-2">
     <div class="space-y-2 rounded-xl border border-border bg-card/60 p-4 shadow-glass">
       <div class="flex items-center justify-between">
         <h2 class="font-serif text-sm">Input</h2>
@@ -162,6 +176,7 @@
           &nbsp;
         {/if}
       </div>
+    </div>
     </div>
   </div>
 

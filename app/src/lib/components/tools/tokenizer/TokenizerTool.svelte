@@ -5,6 +5,7 @@
   import { notify } from '$lib/stores/toast.svelte';
   import { sessionLog } from '$lib/stores/sessionLog.svelte';
   import { tokenizerState, type Engine, type Token } from './tokenizer.state.svelte';
+  import UsageCard from '$lib/components/shell/UsageCard.svelte';
 
   const s = tokenizerState;
   let pending = $state(false);
@@ -103,14 +104,27 @@
 <svelte:head><title>Tokenizer · Cryptex</title></svelte:head>
 
 <section class="space-y-6">
-  <header class="space-y-2">
-    <h1 class="font-serif text-3xl sm:text-4xl tracking-tight text-balance">
-      Tokenizer
-    </h1>
-    <p class="text-muted-foreground max-w-2xl text-sm sm:text-base">
-      Visualize how models segment your text. Toggle between UTF-8 bytes, naive word splits, and the
-      BPE encoders used by GPT-3.5, GPT-4, and GPT-4o.
-    </p>
+  <header class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div class="space-y-2">
+      <h1 class="font-serif text-3xl sm:text-4xl tracking-tight text-balance">
+        Tokenizer
+      </h1>
+      <p class="text-muted-foreground max-w-2xl text-sm sm:text-base">
+        Visualize how models segment your text. Toggle between UTF-8 bytes, naive word splits, and the
+        BPE encoders used by GPT-3.5, GPT-4, and GPT-4o.
+      </p>
+    </div>
+    <div class="lg:w-72 lg:shrink-0">
+      <UsageCard
+        title="Usage"
+        bullets={[
+          'Compare different BPE vocabularies on the same input.',
+          'Each token is colored so boundaries are visible.',
+          'Useful for verifying token-bomb output and prompt cost.',
+          'cl100k = GPT-3.5/4, o200k = GPT-4o, p50k/r50k = older models.'
+        ]}
+      />
+    </div>
   </header>
 
   <div class="flex flex-wrap items-center gap-3">

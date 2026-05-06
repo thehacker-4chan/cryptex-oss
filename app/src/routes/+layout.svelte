@@ -18,15 +18,19 @@
   let { children } = $props();
   let historyOpen = $state(false);
 
-  // Auth-context routes are standalone — they have their own card layout and
-  // shouldn't show the global Tools rail or chat-mode chrome.
-  const isAuthRoute = $derived.by(() => {
+  // "Chrome-less" routes — auth, settings, and guide all manage their own
+  // navigation and shouldn't show the global Tools rail or chat-mode chrome.
+  // Each of these has its own internal sidebar / structure.
+  const isChromelessRoute = $derived.by(() => {
     const p = page.url?.pathname ?? '';
     const trimmed = p.endsWith('/') ? p.slice(0, -1) : p;
     return (
       trimmed === `${base}/login` ||
       trimmed === `${base}/signup` ||
-      trimmed.startsWith(`${base}/auth/`)
+      trimmed === `${base}/settings` ||
+      trimmed.startsWith(`${base}/auth/`) ||
+      trimmed === `${base}/guide` ||
+      trimmed.startsWith(`${base}/guide/`)
     );
   });
 
@@ -58,7 +62,7 @@
   <HeaderBar onopenHistory={() => (historyOpen = true)} />
 
   <main class="container pt-6 pb-20">
-    {#if chatMode.value === 'tools' && !isAuthRoute}
+    {#if chatMode.value === 'tools' && !isChromelessRoute}
       <div class="mb-6"><TabRail /></div>
     {/if}
     <div class="fade-in">
@@ -66,24 +70,22 @@
     </div>
   </main>
 
-  <footer class="container py-8 text-xs text-muted-foreground">
-    <div class="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-4">
-      <span>
-        Cryptex · local-first text lab · 162 transforms, zero telemetry · by
-        <a
-          href="https://github.com/m4xx101"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="text-primary underline underline-offset-2 hover:text-primary/80"
-        >@m4xx101</a>
+  <footer class="container py-6 text-xs text-muted-foreground">
+    <div class="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4">
+      <span class="font-mono text-[11px] tracking-wide">
+        © {new Date().getFullYear()} Cryptex
       </span>
       <a
-        href="https://github.com/m4xx101/cryptex"
+        href="https://github.com/m4xx101"
         target="_blank"
         rel="noopener noreferrer"
-        class="font-mono hover:text-foreground"
+        class="inline-flex items-center gap-1.5 font-mono text-[11px] tracking-wide transition-colors hover:text-foreground"
+        aria-label="github.com/m4xx101"
       >
-        github.com/m4xx101/cryptex
+        <svg viewBox="0 0 24 24" class="h-3.5 w-3.5 fill-current" aria-hidden="true">
+          <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56v-2c-3.2.69-3.87-1.37-3.87-1.37-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.75 2.68 1.25 3.34.96.1-.74.4-1.25.72-1.54-2.55-.29-5.24-1.27-5.24-5.66 0-1.25.45-2.27 1.18-3.07-.12-.29-.51-1.46.11-3.04 0 0 .96-.31 3.16 1.18a10.95 10.95 0 0 1 5.74 0c2.2-1.49 3.16-1.18 3.16-1.18.62 1.58.23 2.75.11 3.04.74.8 1.18 1.82 1.18 3.07 0 4.4-2.69 5.36-5.25 5.65.41.36.78 1.06.78 2.13v3.16c0 .31.21.66.79.55C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"/>
+        </svg>
+        github.com/m4xx101
       </a>
     </div>
   </footer>

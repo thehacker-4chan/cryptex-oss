@@ -5,7 +5,6 @@
   import Logo from '$lib/components/brand/Logo.svelte';
   import ThemeToggle from './ThemeToggle.svelte';
   import ModePill from './ModePill.svelte';
-  import Github from 'lucide-svelte/icons/github';
   import Settings from 'lucide-svelte/icons/settings';
   import History from 'lucide-svelte/icons/history';
   import HelpCircle from 'lucide-svelte/icons/circle-help';
@@ -47,6 +46,19 @@
       trimmed.startsWith(`${base}/auth/`)
     );
   });
+
+  // Settings + Guide get the brand + theme toggle but no ModePill (those
+  // routes are not tied to chat-vs-tools mode).
+  const hideModePill = $derived.by(() => {
+    const p = $page.url.pathname;
+    const trimmed = p.endsWith('/') ? p.slice(0, -1) : p;
+    return (
+      isAuthRoute ||
+      trimmed === `${base}/settings` ||
+      trimmed === `${base}/guide` ||
+      trimmed.startsWith(`${base}/guide/`)
+    );
+  });
 </script>
 
 <header class="sticky top-0 z-30 border-b border-border/60 glass backdrop-saturate-150">
@@ -56,7 +68,7 @@
         <Logo size={26} />
         <Wordmark size="md" />
       </a>
-      {#if !isAuthRoute}
+      {#if !hideModePill}
         <ModePill />
       {/if}
     </div>
@@ -87,15 +99,6 @@
           title="Guide"
         >
           <HelpCircle size={16} />
-        </a>
-        <a
-          href="https://github.com/m4xx101/cryptex"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="hidden sm:inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-card/50 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          aria-label="Source on GitHub"
-        >
-          <Github size={16} />
         </a>
         <a
           href={base + '/settings/'}

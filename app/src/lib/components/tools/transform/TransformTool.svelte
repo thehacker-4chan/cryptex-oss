@@ -17,6 +17,7 @@
   import Star from 'lucide-svelte/icons/star';
   import Clock from 'lucide-svelte/icons/clock';
   import X from 'lucide-svelte/icons/x';
+  import UsageCard from '$lib/components/shell/UsageCard.svelte';
 
   // Shorthand alias — `s.input`, `s.direction`, etc. read/write module-level $state.
   const s = transformState;
@@ -104,14 +105,28 @@
 
 <section class="space-y-6">
   <!-- Header -->
-  <header class="space-y-2">
-    <h1 class="font-serif text-3xl sm:text-4xl tracking-tight text-balance">
-      Transform <span class="text-primary italic">lab</span>
-    </h1>
-    <p class="text-muted-foreground max-w-2xl text-sm sm:text-base">
-      {Object.keys(transformers).length} transforms — encodings, classical &amp; modern ciphers, Unicode styles, ancient scripts, and steganography.
-      Pick any tile to encode or decode the text on the left.
-    </p>
+  <header class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div class="space-y-2">
+      <h1 class="font-serif text-3xl sm:text-4xl tracking-tight text-balance">
+        Transform <span class="text-primary italic">lab</span>
+      </h1>
+      <p class="text-muted-foreground max-w-2xl text-sm sm:text-base">
+        {Object.keys(transformers).length} transforms — encodings, classical &amp; modern ciphers, Unicode styles, ancient scripts, and steganography.
+        Pick any tile to encode or decode the text on the left.
+      </p>
+    </div>
+    <div class="lg:w-72 lg:shrink-0">
+      <UsageCard
+        title="Usage"
+        bullets={[
+          'Pick a category or search for a transform by name.',
+          'Encode/Decode toggles direction; greyed out if not reversible.',
+          'Star a transform to pin it to Favorites.',
+          'Some transforms have options — they expand below the tile.'
+        ]}
+        note="All 162 transforms run in your browser — no network calls."
+      />
+    </div>
   </header>
 
   <!-- Input + Output row -->

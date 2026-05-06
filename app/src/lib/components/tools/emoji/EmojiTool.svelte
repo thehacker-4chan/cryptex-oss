@@ -11,6 +11,7 @@
   import EyeOff from 'lucide-svelte/icons/eye-off';
   import Sparkles from 'lucide-svelte/icons/sparkles';
   import { emojiState } from './emoji.state.svelte';
+  import UsageCard from '$lib/components/shell/UsageCard.svelte';
 
   const s = emojiState;
 
@@ -73,14 +74,27 @@
 </script>
 
 <section class="space-y-6">
-  <header class="space-y-2">
-    <h1 class="font-serif text-3xl sm:text-4xl tracking-tight text-balance">
-      Emoji <span class="text-primary italic">steganography</span>
-    </h1>
-    <p class="text-muted-foreground max-w-2xl text-sm sm:text-base">
-      Hide a secret message inside a single emoji using Unicode variation selectors,
-      or encode with the invisible Tags block. Fully offline — payloads never leave this page.
-    </p>
+  <header class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <div class="space-y-2">
+      <h1 class="font-serif text-3xl sm:text-4xl tracking-tight text-balance">
+        Emoji <span class="text-primary italic">steganography</span>
+      </h1>
+      <p class="text-muted-foreground max-w-2xl text-sm sm:text-base">
+        Hide a secret message inside a single emoji using Unicode variation selectors,
+        or encode with the invisible Tags block. Fully offline — payloads never leave this page.
+      </p>
+    </div>
+    <div class="lg:w-72 lg:shrink-0">
+      <UsageCard
+        title="Usage"
+        bullets={[
+          'Pick an emoji, type a secret message, copy the encoded glyph.',
+          'Tags-block mode encodes any ASCII into invisible E0xxx codepoints.',
+          'Decode mode reads the variation selectors back to text.',
+          'Many tokenizers consume each VS as a separate token — useful for cost.'
+        ]}
+      />
+    </div>
   </header>
 
   <!-- Mode + direction switches -->
