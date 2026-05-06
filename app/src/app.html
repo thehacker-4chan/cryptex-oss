@@ -2,13 +2,12 @@
 <html lang="en" class="h-full">
   <head>
     <meta charset="utf-8" />
-    <!-- Brand-mark favicon. Hardcoded brand palette inside the SVG so it
-         renders correctly in light + dark browser chrome.
-         No <link rel="apple-touch-icon"> or og:image refs here — those
-         require PNG files we don't ship yet, and SvelteKit's prerender
-         step crawls every linked asset and aborts on 404. Add them
-         back once cryptex-mark.svg has been exported to PNG sizes. -->
+    <!-- Brand-mark favicon (SVG primary for crisp scaling, PNG for clients
+         that strip SVG e.g. iOS home-screen, social-card unfurlers). All
+         three files ship in app/static/. -->
     <link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" type="image/png" href="%sveltekit.assets%/cryptex-mark.png" />
+    <link rel="apple-touch-icon" href="%sveltekit.assets%/apple-touch-icon.png" />
     <link rel="mask-icon" href="%sveltekit.assets%/favicon.svg" color="#f97316" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
@@ -16,13 +15,15 @@
     <meta name="theme-color" content="#fafaf8" media="(prefers-color-scheme: light)" />
     <title>Cryptex — Universal Text Lab</title>
     <meta name="description" content="162 transforms, ciphers, steganography, and decoders in one lab. Offline-capable, local-first." />
-    <!-- OG / social-card meta — image-less so unfurlers fall back to
-         title + description gracefully. Re-add og:image once we ship a
-         hosted PNG (SVGs aren't accepted by most unfurlers). -->
+    <!-- OG / Twitter card meta with hosted PNG. og-image.png ships in
+         app/static/ so unfurlers (Twitter, Slack, Discord, Facebook)
+         show the actual brand mark in link previews. -->
     <meta property="og:title" content="Cryptex — Universal Text Lab" />
     <meta property="og:description" content="The AI red-teamer's text lab — local-first, BYOK, browser-only." />
     <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary" />
+    <meta property="og:image" content="%sveltekit.assets%/og-image.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="%sveltekit.assets%/og-image.png" />
     <script>
       // Set theme class before paint to avoid flash
       (function () {

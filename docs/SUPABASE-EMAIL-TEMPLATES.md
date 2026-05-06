@@ -7,8 +7,8 @@ template:
   Site URL once in Supabase → Authentication → URL Configuration and the
   templates pick it up automatically across dev, staging, and prod.
 - **Renders the Cryptex brand mark** at the top via an `<img>` pointing
-  at `{{ .SiteURL }}/cryptex-mark.svg` (we ship that file in
-  `app/static/cryptex-mark.svg`). Email clients that block remote
+  at `{{ .SiteURL }}/cryptex-mark.png` (we ship that file in
+  `app/static/cryptex-mark.png`). Email clients that block remote
   images get the inline-styled wordmark fallback rendered just below.
 - **Surfaces the 6-digit `{{ .Token }}`** as the primary verification
   path. This is prefetch-resistant: corporate email scanners can't
@@ -26,7 +26,7 @@ template:
 5. **Save**.
 
 The first time you redeploy with this commit, Cryptex will serve
-`/cryptex-mark.svg` at the root of your domain — that's the path the
+`/cryptex-mark.png` at the root of your domain — that's the path the
 templates reference.
 
 > **Variables Supabase substitutes for you:**
@@ -76,7 +76,7 @@ Verify your Cryptex account
           <!-- Banner with logo + wordmark + headline -->
           <tr>
             <td style="background: linear-gradient(135deg, #f97316 0%, #d97706 50%, #6b8294 100%); padding: 32px 32px 28px; text-align:center;">
-              <img src="{{ .SiteURL }}/cryptex-mark.svg" width="56" height="56" alt="Cryptex" style="display:block; margin:0 auto 14px; border:0; outline:none;" />
+              <img src="{{ .SiteURL }}/cryptex-mark.png" width="56" height="56" alt="Cryptex" style="display:block; margin:0 auto 14px; border:0; outline:none;" />
               <div style="display:inline-block; padding: 5px 12px; background: rgba(0,0,0,0.18); border-radius: 999px; font-size:11px; letter-spacing: 0.18em; text-transform: uppercase; color:#fff7ed; font-weight:600;">
                 CRYPTEX · text lab
               </div>
@@ -170,7 +170,7 @@ Your Cryptex sign-in code
 
           <tr>
             <td style="background: linear-gradient(135deg, #f97316 0%, #d97706 50%, #6b8294 100%); padding: 32px 32px 28px; text-align:center;">
-              <img src="{{ .SiteURL }}/cryptex-mark.svg" width="56" height="56" alt="Cryptex" style="display:block; margin:0 auto 14px; border:0; outline:none;" />
+              <img src="{{ .SiteURL }}/cryptex-mark.png" width="56" height="56" alt="Cryptex" style="display:block; margin:0 auto 14px; border:0; outline:none;" />
               <div style="display:inline-block; padding: 5px 12px; background: rgba(0,0,0,0.18); border-radius: 999px; font-size:11px; letter-spacing: 0.18em; text-transform: uppercase; color:#fff7ed; font-weight:600;">
                 CRYPTEX · sign-in
               </div>
@@ -263,7 +263,7 @@ Reset your Cryptex password
 
           <tr>
             <td style="background: linear-gradient(135deg, #f97316 0%, #d97706 50%, #6b8294 100%); padding: 32px 32px 28px; text-align:center;">
-              <img src="{{ .SiteURL }}/cryptex-mark.svg" width="56" height="56" alt="Cryptex" style="display:block; margin:0 auto 14px; border:0; outline:none;" />
+              <img src="{{ .SiteURL }}/cryptex-mark.png" width="56" height="56" alt="Cryptex" style="display:block; margin:0 auto 14px; border:0; outline:none;" />
               <div style="display:inline-block; padding: 5px 12px; background: rgba(0,0,0,0.18); border-radius: 999px; font-size:11px; letter-spacing: 0.18em; text-transform: uppercase; color:#fff7ed; font-weight:600;">
                 CRYPTEX · password reset
               </div>
@@ -358,7 +358,7 @@ You've been invited to Cryptex
 
           <tr>
             <td style="background: linear-gradient(135deg, #f97316 0%, #d97706 50%, #6b8294 100%); padding: 32px 32px 28px; text-align:center;">
-              <img src="{{ .SiteURL }}/cryptex-mark.svg" width="56" height="56" alt="Cryptex" style="display:block; margin:0 auto 14px; border:0; outline:none;" />
+              <img src="{{ .SiteURL }}/cryptex-mark.png" width="56" height="56" alt="Cryptex" style="display:block; margin:0 auto 14px; border:0; outline:none;" />
               <div style="display:inline-block; padding: 5px 12px; background: rgba(0,0,0,0.18); border-radius: 999px; font-size:11px; letter-spacing: 0.18em; text-transform: uppercase; color:#fff7ed; font-weight:600;">
                 CRYPTEX · invite
               </div>
@@ -450,7 +450,7 @@ Confirm your new Cryptex email
 
           <tr>
             <td style="background: linear-gradient(135deg, #f97316 0%, #d97706 50%, #6b8294 100%); padding: 32px 32px 28px; text-align:center;">
-              <img src="{{ .SiteURL }}/cryptex-mark.svg" width="56" height="56" alt="Cryptex" style="display:block; margin:0 auto 14px; border:0; outline:none;" />
+              <img src="{{ .SiteURL }}/cryptex-mark.png" width="56" height="56" alt="Cryptex" style="display:block; margin:0 auto 14px; border:0; outline:none;" />
               <div style="display:inline-block; padding: 5px 12px; background: rgba(0,0,0,0.18); border-radius: 999px; font-size:11px; letter-spacing: 0.18em; text-transform: uppercase; color:#fff7ed; font-weight:600;">
                 CRYPTEX · email change
               </div>
@@ -541,37 +541,28 @@ Sender name:   Cryptex
 
 ## Logo rendering — how it works in practice
 
-The `<img src="{{ .SiteURL }}/cryptex-mark.svg" ...>` line at the top
-of every banner pulls the SVG mark from your own domain. Render
-behavior:
+The `<img src="{{ .SiteURL }}/cryptex-mark.png" ...>` line at the top
+of every banner pulls a hosted PNG from your own domain. PNG was
+chosen over SVG specifically because Gmail / Outlook strip SVGs as a
+security policy — PNG renders everywhere.
 
-| Client | Renders the SVG? | Renders the wordmark below? |
+| Client | Renders the PNG? | Renders the wordmark below? |
 |---|---|---|
 | Apple Mail (macOS, iOS) | ✅ | ✅ |
-| Gmail (web, light/dark) | ❌ blocks SVG | ✅ |
-| Outlook 365 (web) | ❌ ignores SVG | ✅ |
-| Outlook desktop | ❌ ignores SVG | ✅ |
-| ProtonMail | ⚠️ blocks images by default; user can allow | ✅ |
-| Yahoo Mail | ⚠️ inconsistent | ✅ |
+| Gmail (web, light/dark) | ✅ | ✅ |
+| Outlook 365 (web) | ✅ | ✅ |
+| Outlook desktop | ✅ | ✅ |
+| ProtonMail | ⚠️ blocks remote images by default; user can allow | ✅ |
+| Yahoo Mail | ✅ | ✅ |
 
 The wordmark pill (`CRYPTEX · text lab`) is rendered with pure CSS in
-the `<div>` — every client can render it, no exceptions. So even when
-the SVG fails to load, the brand still shows.
+the `<div>` below the image — every client renders it, no exceptions.
+So even when remote images are blocked (ProtonMail strict mode), the
+brand still shows.
 
-If you want a PNG that renders everywhere (including Gmail), export
-`app/static/cryptex-mark.svg` to a PNG (any size — 96×96 to 256×256
-works fine) and host it at the same path with a `.png` extension:
-
-```bash
-# any of these one-liners works
-inkscape --export-type=png --export-width=96 app/static/cryptex-mark.svg -o app/static/cryptex-mark.png
-# or
-convert -background none app/static/cryptex-mark.svg -resize 96x96 app/static/cryptex-mark.png
-# or use any web-based SVG-to-PNG converter
-```
-
-Then change `cryptex-mark.svg` → `cryptex-mark.png` in each template's
-`<img src=...>`. Gmail will render it.
+The PNG file ships in the repo at `app/static/cryptex-mark.png`. After
+deploy, it's served at `{{ .SiteURL }}/cryptex-mark.png` automatically —
+no manual hosting step required.
 
 ---
 
@@ -579,15 +570,15 @@ Then change `cryptex-mark.svg` → `cryptex-mark.png` in each template's
 
 | Client | Card / gradient / OTP block | Logo `<img>` | Wordmark fallback |
 |---|---|---|---|
-| Gmail (web, dark) | ✅ | ❌ SVG blocked | ✅ |
-| Gmail (web, light) | ✅ | ❌ SVG blocked | ✅ |
+| Gmail (web, dark) | ✅ | ✅ | ✅ |
+| Gmail (web, light) | ✅ | ✅ | ✅ |
 | Apple Mail (macOS / iOS) | ✅ | ✅ | ✅ |
-| Outlook 365 (web) | ✅ slight gradient flatten | ❌ SVG ignored | ✅ |
-| Outlook 2019 (desktop) | ⚠️ gradient → solid | ❌ SVG ignored | ✅ |
+| Outlook 365 (web) | ✅ slight gradient flatten | ✅ | ✅ |
+| Outlook 2019 (desktop) | ⚠️ gradient → solid | ✅ | ✅ |
 | ProtonMail | ✅ | ⚠️ user-blocked default | ✅ |
-| Yahoo Mail | ✅ | ⚠️ inconsistent | ✅ |
+| Yahoo Mail | ✅ | ✅ | ✅ |
 
 If you need ironclad cross-Outlook gradient fidelity, replace
 `background: linear-gradient(...)` on the banner cell with a solid
-`#f97316`. The SVG line + wordmark + OTP block all degrade gracefully
+`#f97316`. The PNG line + wordmark + OTP block all degrade gracefully
 on their own.
