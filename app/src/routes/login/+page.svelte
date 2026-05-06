@@ -251,7 +251,7 @@
               </button>
 
               <p class="text-[11px] leading-relaxed text-muted-foreground">
-                We'll email a one-time link. No password required.
+                We'll email a one-time link. No password required. Check spam if it doesn't arrive within a minute.
               </p>
             </form>
           {/if}

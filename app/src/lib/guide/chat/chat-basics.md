@@ -11,6 +11,24 @@ Terse reference for the chat surface. For technique depth see the
 [technique catalog](/guide/technique-catalog/); for attack strategy
 see [orchestrating jailbreaks](/guide/orchestrating-jailbreaks/).
 
+## Sign-in is required for Chat
+
+The chat surface, Attack Chain, and Dataset Inspector all require a
+signed-in account. Hitting `/chat` without a session bounces you to
+`/login` — sign in with email + password, magic link, Google, or GitHub
+to continue.
+
+**Why?** Chat persists every conversation, every chain run, and every
+tool-call result to a per-user IndexedDB partition (`cryptex-chat`).
+Tying that to an auth identity is what lets your history sync across
+devices and survive browser-storage clears.
+
+**The offline tools do NOT require sign-in.** Transform, Decode, all 26
+red-team workbenches (AdvSuffix, Glitch, OCR Inject, MD Exfil, HarmBench,
+StrongREJECT, JBB, Watermark, …) work fully without an account. From
+the login page, the **Continue without sign-in** button drops you
+straight into the offline tool rail.
+
 ## Provider matrix
 
 | Provider | Adapter | Notes |

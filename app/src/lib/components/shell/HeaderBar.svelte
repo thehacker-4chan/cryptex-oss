@@ -34,9 +34,10 @@
     return `${base}/guide/`;
   });
 
-  // Auth routes (/login, /signup, /auth/*) get a stripped header — no Chat /
-  // Tools mode toggle, no history drawer, no nav-y icons. Just the brand
-  // wordmark and the theme toggle. Keeps the page focused on the form.
+  // Auth routes (/login, /signup, /auth/*) hide the heavy nav controls
+  // (history, guide, settings) so the page can focus on the form. The Chat /
+  // Tools mode pill still shows everywhere — it acts as a quick "get me out
+  // of this auth screen back to the app" shortcut.
   const isAuthRoute = $derived.by(() => {
     const p = $page.url.pathname;
     const trimmed = p.endsWith('/') ? p.slice(0, -1) : p;
@@ -44,19 +45,6 @@
       trimmed === `${base}/login` ||
       trimmed === `${base}/signup` ||
       trimmed.startsWith(`${base}/auth/`)
-    );
-  });
-
-  // Settings + Guide get the brand + theme toggle but no ModePill (those
-  // routes are not tied to chat-vs-tools mode).
-  const hideModePill = $derived.by(() => {
-    const p = $page.url.pathname;
-    const trimmed = p.endsWith('/') ? p.slice(0, -1) : p;
-    return (
-      isAuthRoute ||
-      trimmed === `${base}/settings` ||
-      trimmed === `${base}/guide` ||
-      trimmed.startsWith(`${base}/guide/`)
     );
   });
 </script>
@@ -68,9 +56,7 @@
         <Logo size={26} />
         <Wordmark size="md" />
       </a>
-      {#if !hideModePill}
-        <ModePill />
-      {/if}
+      <ModePill />
     </div>
 
     <div class="flex items-center gap-2">

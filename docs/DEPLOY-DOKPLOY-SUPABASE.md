@@ -184,8 +184,8 @@ If anything fails, jump to **Troubleshooting** at the bottom.
 
 If sign-up didn't arrive in your inbox:
 - Check spam folder.
-- Free Supabase has rate-limit on outbound emails (3-4 per hour). Wait + retry.
-- For production volume, configure custom SMTP in Supabase: **Project Settings** → **Authentication** → **SMTP Settings**. Use any transactional provider (SendGrid, Postmark, Mailgun, AWS SES). Free SMTP is fine for low traffic.
+- Free Supabase has a hard cap of **3-4 outbound emails per hour, project-wide** on the shared mailer. Hitting that ceiling silently drops or queues subsequent emails. Wait an hour and retry, or…
+- **Strongly recommended for any real use:** swap Supabase's shared mailer for a real transactional provider (Resend, SendGrid, Postmark, AWS SES). Step-by-step: see [DEPLOY-OAUTH-AND-EMAIL.md → Part A](DEPLOY-OAUTH-AND-EMAIL.md#part-a--custom-smtp-via-resend-10-minutes-recommended). Resend's free tier covers 100 emails/day and signup-confirmation arrives in under 5 seconds.
 
 ---
 
@@ -308,13 +308,9 @@ Fix: Wait 30 seconds. If still 503, check Dokploy → **Logs** for build/runtime
 
 ### Want OAuth (Google / GitHub) buttons to work
 
-Cause: They don't work by default — you have to enable each provider in Supabase first.
+Cause: They don't work by default — you have to register an OAuth app on each provider's developer console and paste the credentials into Supabase.
 
-Fix: Supabase → **Authentication** → **Providers** → enable Google or GitHub. Each provider needs you to register an OAuth app on Google Cloud Console / GitHub Settings → Developer settings. Supabase has step-by-step docs:
-- Google: <https://supabase.com/docs/guides/auth/social-login/auth-google>
-- GitHub: <https://supabase.com/docs/guides/auth/social-login/auth-github>
-
-After enabling in Supabase, the existing buttons in `/login` and `/signup` start working — no rebuild needed.
+Fix: Follow the step-by-step guide at [DEPLOY-OAUTH-AND-EMAIL.md](DEPLOY-OAUTH-AND-EMAIL.md) — Parts B (Google) and C (GitHub). Each takes ~5-8 minutes. No Cryptex rebuild needed; the buttons in `/login` and `/signup` start working as soon as you save the provider in Supabase.
 
 ### How do I make Cryptex public again (no sign-in required)?
 
