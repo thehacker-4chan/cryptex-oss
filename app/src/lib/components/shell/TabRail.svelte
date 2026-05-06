@@ -6,14 +6,12 @@
   import ScanSearch from 'lucide-svelte/icons/scan-search';
   import Smile from 'lucide-svelte/icons/smile';
   import MessageSquare from 'lucide-svelte/icons/message-square';
-  import Split from 'lucide-svelte/icons/split';
   import Hash from 'lucide-svelte/icons/hash';
   import Bomb from 'lucide-svelte/icons/bomb';
   import ArrowLeftRight from 'lucide-svelte/icons/arrow-left-right';
   import FlaskConical from 'lucide-svelte/icons/flask-conical';
   import Sparkles from 'lucide-svelte/icons/sparkles';
   import Shield from 'lucide-svelte/icons/shield';
-  import Languages from 'lucide-svelte/icons/languages';
   import { onMount, tick } from 'svelte';
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -24,14 +22,12 @@
     { href: '/decode',         label: 'Decode',       icon: ScanSearch,     status: 'live' },
     { href: '/emoji',          label: 'Emoji',        icon: Smile,          status: 'live' },
     { href: '/gibberish',      label: 'Gibberish',    icon: MessageSquare,  status: 'live' },
-    { href: '/splitter',       label: 'Splitter',     icon: Split,          status: 'live' },
     { href: '/tokenizer',      label: 'Tokenizer',    icon: Hash,           status: 'live' },
     { href: '/tokenade',       label: 'Tokenade',     icon: Bomb,           status: 'live' },
     { href: '/bijection',      label: 'Bijection',    icon: ArrowLeftRight, status: 'live' },
     { href: '/fuzzer',         label: 'Fuzzer',       icon: FlaskConical,   status: 'live' },
     { href: '/promptcraft',    label: 'PromptCraft',  icon: Sparkles,       status: 'live' },
-    { href: '/anticlassifier', label: 'Anti-classifier', icon: Shield,      status: 'live' },
-    { href: '/translate',      label: 'Translate',    icon: Languages,      status: 'live' }
+    { href: '/anticlassifier', label: 'Anti-classifier', icon: Shield,      status: 'live' }
   ];
 
   let list: HTMLOListElement | undefined = $state();
