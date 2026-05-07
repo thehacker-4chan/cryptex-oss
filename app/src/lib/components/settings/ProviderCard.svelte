@@ -7,6 +7,8 @@
   import { catalog } from '$lib/ai/catalog.svelte';
   import ErrorBanner from '$lib/components/ai/ErrorBanner.svelte';
   import { GatewayError } from '$lib/ai/types';
+  import { featureFlags } from '$lib/config/featureFlags';
+  import { session } from '$lib/auth/session.svelte';
   import Eye from 'lucide-svelte/icons/eye';
   import EyeOff from 'lucide-svelte/icons/eye-off';
   import Trash2 from 'lucide-svelte/icons/trash-2';
@@ -15,9 +17,23 @@
   import Loader from 'lucide-svelte/icons/loader-circle';
   import ExternalLink from 'lucide-svelte/icons/external-link';
   import RefreshCw from 'lucide-svelte/icons/refresh-cw';
+  import Lock from 'lucide-svelte/icons/lock';
+  import LockOpen from 'lucide-svelte/icons/lock-open';
 
   type Props = { record: ProviderRecord; onRemove?: () => void };
   let { record, onRemove }: Props = $props();
+
+  // Storage-state badge: shows whether this provider's API key currently
+  // lives in the encrypted Supabase vault or the plaintext localStorage
+  // mirror. For signed-in users every saved key should land in the vault;
+  // for unsigned users localStorage is the only option.
+  const storageMode = $derived<'vault' | 'plaintext' | 'vault-locked'>(
+    featureFlags.authEnabled && session.isSignedIn
+      ? session.vaultUnlocked
+        ? 'vault'
+        : 'vault-locked'
+      : 'plaintext'
+  );
 
   let showKey = $state(false);
   // keyInput seeds from the prop's initial value; the user edits it locally before blur-saving
@@ -95,7 +111,31 @@
 
 <div id={`provider-${record.id}${instanceId ? '-' + instanceId : ''}`} class="glass rounded-lg border border-white/10 p-4 space-y-3">
   <div class="flex items-center justify-between">
-    <h3 class="font-semibold">{providerDisplayName()}</h3>
+    <div class="flex items-center gap-2">
+      <h3 class="font-semibold">{providerDisplayName()}</h3>
+      {#if storageMode === 'vault'}
+        <span
+          class="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-400"
+          title="API key stored encrypted (PBKDF2 + AES-GCM) in your Supabase vault. The server never sees plaintext."
+        >
+          <Lock size={10} /> Encrypted
+        </span>
+      {:else if storageMode === 'vault-locked'}
+        <span
+          class="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-400"
+          title="Key is encrypted in your vault. Add or edit a provider to unlock and use it."
+        >
+          <Lock size={10} /> Vault locked
+        </span>
+      {:else}
+        <span
+          class="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-400"
+          title="API key stored as plaintext in your browser's localStorage / sessionStorage. Sign in to use the encrypted vault."
+        >
+          <LockOpen size={10} /> Plaintext
+        </span>
+      {/if}
+    </div>
     <button type="button" onclick={remove} class="text-muted-foreground hover:text-destructive" aria-label="Remove provider">
       <Trash2 class="h-4 w-4" />
     </button>

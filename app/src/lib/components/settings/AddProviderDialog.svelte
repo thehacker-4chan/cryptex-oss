@@ -1,5 +1,10 @@
 <script lang="ts">
-  import { addProvider, updateProvider, listProviders } from '$lib/ai/providers.svelte';
+  import {
+    addProvider,
+    updateProvider,
+    listProviders,
+    persistKeyToVault
+  } from '$lib/ai/providers.svelte';
   import { OPENAI_COMPAT_PRESETS } from '$lib/ai/presets';
   import type { ProviderRecord } from '$lib/ai/types';
   import { GatewayError } from '$lib/ai/types';
@@ -7,7 +12,10 @@
   import { anthropicAdapter } from '$lib/ai/adapters/anthropic';
   import { openaiCompatAdapter } from '$lib/ai/adapters/openai-compat';
   import ErrorBanner from '$lib/components/ai/ErrorBanner.svelte';
+  import { featureFlags } from '$lib/config/featureFlags';
+  import { session } from '$lib/auth/session.svelte';
   import X from 'lucide-svelte/icons/x';
+  import KeyRound from 'lucide-svelte/icons/key-round';
 
   type Props = { open: boolean; onClose: () => void };
   let { open, onClose }: Props = $props();
@@ -29,6 +37,19 @@
   let verifyError = $state<GatewayError | null>(null);
   let abortCtrl: AbortController | null = null;
 
+  // ----- Encrypted-vault flow (signed-in path) -----
+  // When the user is signed in, API keys persist as encrypted ciphertext in
+  // the Supabase `byok_keys` table (PBKDF2 600k + AES-GCM). The vault is
+  // unlocked once per session — only the first key needs a passphrase to
+  // seed the canonical salt; subsequent keys reuse the cached CryptoKey via
+  // persistKeyToVault(rec) without re-prompting.
+  const useVault = $derived(featureFlags.authEnabled && session.isSignedIn);
+  let vaultPassphrase = $state('');
+  let vaultPromptOpen = $state(false);
+  let vaultPromptMode = $state<'setup' | 'unlock'>('setup');
+  let pendingRecord = $state<ProviderRecord | null>(null);
+  let vaultError = $state<string | null>(null);
+
   $effect(() => {
     if (chosenPresetId && chosen === 'custom-preset') {
       const p = OPENAI_COMPAT_PRESETS.find((x) => x.id === chosenPresetId);
@@ -40,24 +61,21 @@
   const hasOpenRouter = $derived(listProviders().some((p) => p.id === 'openrouter'));
   const hasAnthropic = $derived(listProviders().some((p) => p.id === 'anthropic'));
 
-  async function saveWithoutVerify() {
-    // Bail out of the verify path and persist the provider as-is. Used when
-    // the probe fails with a transient network / CORS-looking error but the
-    // user knows the provider works (e.g. they just tested it elsewhere).
-    verifyError = null;
+  /** Build the ProviderRecord that persistRecord() will save. Centralised so
+   *  saveWithoutVerify(), save(), and the post-passphrase-prompt callback
+   *  all build the same shape. */
+  function buildRecord(): ProviderRecord | null {
     if (chosen === 'openrouter') {
-      const record: Extract<ProviderRecord, { id: 'openrouter' }> = { id: 'openrouter', apiKey: apiKey.trim(), enabled: true };
-      if (hasOpenRouter) updateProvider('openrouter', { apiKey: apiKey.trim() });
-      else addProvider(record);
-    } else if (chosen === 'anthropic') {
-      const record: Extract<ProviderRecord, { id: 'anthropic' }> = { id: 'anthropic', apiKey: apiKey.trim(), enabled: true };
-      if (hasAnthropic) updateProvider('anthropic', { apiKey: apiKey.trim() });
-      else addProvider(record);
-    } else if (chosen === 'custom-preset') {
+      return { id: 'openrouter', apiKey: apiKey.trim(), enabled: true };
+    }
+    if (chosen === 'anthropic') {
+      return { id: 'anthropic', apiKey: apiKey.trim(), enabled: true };
+    }
+    if (chosen === 'custom-preset') {
       const preset = OPENAI_COMPAT_PRESETS.find((p) => p.id === chosenPresetId)!;
       const isCustom = preset.id === 'custom';
       const effectiveTestModel = isCustom ? testModel.trim() : (preset.defaultTestModel ?? '');
-      const record: Extract<ProviderRecord, { id: 'openai-compat' }> = {
+      return {
         id: 'openai-compat',
         instanceId: crypto.randomUUID(),
         name: name.trim() || preset.name,
@@ -67,9 +85,80 @@
         testModel: effectiveTestModel,
         enabled: true
       };
+    }
+    return null;
+  }
+
+  /** Persist the record to the right backing store: encrypted vault for
+   *  signed-in users (with passphrase prompt for the first key per vault),
+   *  plaintext localStorage for everyone else. Resolves to true on success,
+   *  false when the vault prompt has taken over (caller should not close). */
+  async function persistRecord(record: ProviderRecord): Promise<boolean> {
+    // Update the in-memory + localStorage-mirror record first. For unsigned
+    // users this is the only step; for signed-in users the apiKey gets
+    // stripped in providers.svelte.ts persist() and the encrypted ciphertext
+    // is written via persistKeyToVault() below.
+    if (chosen === 'openrouter') {
+      if (hasOpenRouter) updateProvider('openrouter', { apiKey: record.apiKey });
+      else addProvider(record);
+    } else if (chosen === 'anthropic') {
+      if (hasAnthropic) updateProvider('anthropic', { apiKey: record.apiKey });
+      else addProvider(record);
+    } else if (chosen === 'custom-preset') {
       addProvider(record);
     }
-    close();
+
+    if (!useVault) return true;
+
+    // Try the cached-key fast-path first. Falls through to passphrase prompt
+    // when vault is locked or empty.
+    try {
+      await persistKeyToVault(record);
+      return true;
+    } catch (err) {
+      const msg = (err as Error).message;
+      if (msg === 'Vault locked' || msg === 'Vault empty') {
+        // Surface the inline passphrase prompt — it'll call persistKeyToVault
+        // a second time with the entered passphrase.
+        pendingRecord = record;
+        vaultPromptMode = msg === 'Vault empty' ? 'setup' : 'unlock';
+        vaultPassphrase = '';
+        vaultError = null;
+        vaultPromptOpen = true;
+        return false;
+      }
+      // Any other failure (Supabase network, etc.) — surface to user.
+      verifyError = new GatewayError(`Could not encrypt key: ${msg}`, {
+        category: 'unknown',
+        provider: record.id
+      });
+      return false;
+    }
+  }
+
+  async function submitVaultPassphrase() {
+    if (!pendingRecord || vaultPassphrase.length === 0) return;
+    vaultError = null;
+    try {
+      await persistKeyToVault(pendingRecord, vaultPassphrase);
+      vaultPromptOpen = false;
+      vaultPassphrase = '';
+      pendingRecord = null;
+      close();
+    } catch (err) {
+      vaultError = (err as Error).message || 'Vault unlock failed.';
+    }
+  }
+
+  async function saveWithoutVerify() {
+    // Bail out of the verify path and persist the provider as-is. Used when
+    // the probe fails with a transient network / CORS-looking error but the
+    // user knows the provider works (e.g. they just tested it elsewhere).
+    verifyError = null;
+    const record = buildRecord();
+    if (!record) return;
+    const ok = await persistRecord(record);
+    if (ok) close();
   }
 
   async function save() {
@@ -79,30 +168,24 @@
     abortCtrl = new AbortController();
 
     try {
+      // Validate the key with the provider FIRST so we never persist a key
+      // that doesn't work. The persist + (optional) vault-encrypt step
+      // happens only after a clean validateKey() return.
+      const trimmed = apiKey.trim();
       if (chosen === 'openrouter') {
         const provisional: Extract<ProviderRecord, { id: 'openrouter' }> = {
           id: 'openrouter',
-          apiKey: apiKey.trim(),
+          apiKey: trimmed,
           enabled: true
         };
-        await openrouterAdapter(provisional).validateKey(apiKey.trim(), abortCtrl.signal);
-        if (hasOpenRouter) {
-          updateProvider('openrouter', { apiKey: apiKey.trim() });
-        } else {
-          addProvider(provisional);
-        }
+        await openrouterAdapter(provisional).validateKey(trimmed, abortCtrl.signal);
       } else if (chosen === 'anthropic') {
         const provisional: Extract<ProviderRecord, { id: 'anthropic' }> = {
           id: 'anthropic',
-          apiKey: apiKey.trim(),
+          apiKey: trimmed,
           enabled: true
         };
-        await anthropicAdapter(provisional).validateKey(apiKey.trim(), abortCtrl.signal);
-        if (hasAnthropic) {
-          updateProvider('anthropic', { apiKey: apiKey.trim() });
-        } else {
-          addProvider(provisional);
-        }
+        await anthropicAdapter(provisional).validateKey(trimmed, abortCtrl.signal);
       } else if (chosen === 'custom-preset') {
         const preset = OPENAI_COMPAT_PRESETS.find((p) => p.id === chosenPresetId)!;
         const isCustom = preset.id === 'custom';
@@ -121,14 +204,18 @@
           name: name.trim() || preset.name,
           presetId: preset.id,
           baseURL: baseURL.trim() || preset.baseURL,
-          apiKey: apiKey.trim(),
+          apiKey: trimmed,
           testModel: effectiveTestModel,
           enabled: true
         };
-        await openaiCompatAdapter(record).validateKey(apiKey.trim(), abortCtrl.signal);
-        addProvider(record);
+        await openaiCompatAdapter(record).validateKey(trimmed, abortCtrl.signal);
       }
-      close();
+      // Validation succeeded — build the record and persist via the right
+      // backing store (encrypted vault when signed in, plaintext otherwise).
+      const record = buildRecord();
+      if (!record) return;
+      const ok = await persistRecord(record);
+      if (ok) close();
     } catch (e) {
       if ((e as Error)?.name === 'AbortError') return;
       verifyError =
@@ -265,4 +352,72 @@
       {/if}
     </div>
   </div>
+
+  <!-- Vault passphrase prompt: shown when persistKeyToVault throws
+       "Vault locked" / "Vault empty". Modal-on-modal — sits on top of
+       the AddProviderDialog so the validated apiKey state is preserved. -->
+  {#if vaultPromptOpen}
+    <div
+      class="fixed inset-0 z-[60] grid place-items-center bg-black/70 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Vault passphrase"
+      tabindex="-1"
+      onclick={() => { vaultPromptOpen = false; pendingRecord = null; }}
+      onkeydown={(e) => { if (e.key === 'Escape') { vaultPromptOpen = false; pendingRecord = null; } }}
+    >
+      <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+      <div
+        role="document"
+        class="glass w-full max-w-sm space-y-4 rounded-xl border border-white/10 p-5"
+        onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => e.stopPropagation()}
+      >
+        <div class="flex items-center gap-2">
+          <KeyRound size={16} class="text-primary" />
+          <h3 class="font-serif text-lg">
+            {vaultPromptMode === 'setup' ? 'Set vault passphrase' : 'Unlock vault'}
+          </h3>
+        </div>
+        <p class="text-xs text-muted-foreground">
+          {#if vaultPromptMode === 'setup'}
+            Choose a passphrase to encrypt your API keys. Keys are stored as
+            ciphertext in your account; the server never sees plaintext.
+            You'll need this passphrase to use AI tools after sign-in.
+          {:else}
+            Enter the passphrase you set when first adding a key. Keys live
+            encrypted in your account and only this passphrase can decrypt them.
+          {/if}
+        </p>
+        <input
+          type="password"
+          bind:value={vaultPassphrase}
+          placeholder={vaultPromptMode === 'setup' ? 'New passphrase' : 'Passphrase'}
+          autocomplete={vaultPromptMode === 'setup' ? 'new-password' : 'current-password'}
+          class="w-full rounded-md border border-white/10 bg-black/30 px-3 py-1.5 font-mono text-xs"
+          onkeydown={(e) => { if (e.key === 'Enter') submitVaultPassphrase(); }}
+        />
+        {#if vaultError}
+          <p class="text-xs text-destructive">{vaultError}</p>
+        {/if}
+        <div class="flex justify-end gap-2">
+          <button
+            type="button"
+            class="px-3 py-1.5 text-sm"
+            onclick={() => { vaultPromptOpen = false; pendingRecord = null; vaultError = null; }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground disabled:opacity-50"
+            onclick={submitVaultPassphrase}
+            disabled={vaultPassphrase.length === 0}
+          >
+            {vaultPromptMode === 'setup' ? 'Save and encrypt' : 'Unlock'}
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
 {/if}
