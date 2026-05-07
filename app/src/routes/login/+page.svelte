@@ -371,7 +371,18 @@
           <p role="status" class="mt-3 rounded-md border border-primary/30 bg-primary/5 p-2 text-[11px] text-foreground">{info}</p>
         {/if}
         {#if error}
-          <p role="alert" class="mt-3 rounded-md border border-destructive/30 bg-destructive/10 p-2 text-[11px] text-destructive">{error}</p>
+          <div role="alert" class="mt-3 space-y-1.5 rounded-md border border-destructive/30 bg-destructive/10 p-2 text-[11px]">
+            <p class="text-destructive">{error}</p>
+            {#if mode === 'signin'}
+              <!-- Soft hint without confirming account-existence: covers
+                   the "OAuth-only user typed their password" case without
+                   revealing that the email is registered, which keeps
+                   the response identical for unknown emails too. -->
+              <p class="text-muted-foreground">
+                Originally signed up with Google or GitHub? Use the buttons below.
+              </p>
+            {/if}
+          </div>
         {/if}
       </div>
 

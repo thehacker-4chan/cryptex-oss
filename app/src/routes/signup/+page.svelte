@@ -17,6 +17,7 @@
   let showPassword = $state(false);
   let acceptTerms = $state(false);
   let error = $state<string | null>(null);
+  let alreadyRegistered = $state(false);
   let success = $state(false);
   let loading = $state(false);
   let busyProvider = $state<'google' | 'github' | 'password' | 'otp' | 'resend' | null>(null);
@@ -54,14 +55,25 @@
     loading = true;
     busyProvider = 'password';
     error = null;
+    alreadyRegistered = false;
     try {
-      await session.signUpWithPassword(email, password);
-      success = true;
+      const result = await session.signUpWithPassword(email, password);
+      if (result.alreadyRegistered) {
+        // Supabase signalled "this email is already registered" via the
+        // standard `data.user.identities = []` shape. We surface a neutral
+        // message that hints at sign-in WITHOUT confirming which auth
+        // method the existing account uses (could be password, Google, or
+        // GitHub). Avoids leaving the user stuck on a broken OTP screen
+        // waiting for an email that will never arrive. See the rationale
+        // in session.svelte.ts: signUpWithPassword.
+        alreadyRegistered = true;
+      } else {
+        success = true;
+      }
     } catch {
-      // Generic message — a per-provider error string can leak
-      // account-existence ("user already registered") and let attackers
-      // enumerate emails. Pretend it always worked from the user's POV;
-      // they'll either get the email or notice the address was wrong.
+      // Generic message for the catch path — Supabase rarely throws here
+      // (enumeration-defense returns success not error), so this branch
+      // mostly handles network / config failures.
       error = "Couldn't create an account. Check your details and try again.";
     } finally {
       loading = false;
@@ -390,7 +402,28 @@
           </button>
         </div>
 
-        {#if error}
+        {#if alreadyRegistered}
+          <!-- Already-registered email surfaced without revealing the
+               specific auth method (password vs Google vs GitHub) the
+               existing account uses. Keeps enumeration noise low while
+               getting the user unstuck. -->
+          <div
+            role="status"
+            class="mt-4 space-y-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-xs"
+          >
+            <p class="font-medium text-foreground">This email is already in use.</p>
+            <p class="text-muted-foreground">
+              Try signing in instead. If you originally signed up with Google or
+              GitHub, use those buttons on the sign-in page.
+            </p>
+            <a
+              href="{base}/login"
+              class="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+            >
+              Go to sign in →
+            </a>
+          </div>
+        {:else if error}
           <p
             role="alert"
             class="mt-4 rounded-md border border-destructive/30 bg-destructive/10 p-2 text-xs text-destructive"

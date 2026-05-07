@@ -178,14 +178,42 @@ export const session = {
     if (error) throw error;
   },
 
-  async signUpWithPassword(email: string, password: string): Promise<void> {
+  /**
+   * Sign up a new user with email + password.
+   *
+   * Returns `{ alreadyRegistered: true }` when Supabase's enumeration-defense
+   * returns success but `data.user.identities = []` (the public signal that
+   * the email is already registered — either as a password account or via
+   * OAuth-only). The caller should redirect the user to the sign-in path
+   * instead of waiting on an OTP that will never arrive.
+   *
+   * Trade-off: exposing this boolean is a controlled account-existence hint.
+   * Bulk enumeration is bounded by Supabase's server-side rate-limit + our
+   * client-side 5/min throttle. The UX cost of leaving users stuck on a
+   * broken OTP screen is far higher than the (already-bounded) enumeration
+   * risk — every mainstream auth product (GitHub, Slack, Notion, Linear)
+   * makes the same trade. The UI message is a soft redirect, never confirms
+   * which provider the existing account uses.
+   */
+  async signUpWithPassword(
+    email: string,
+    password: string
+  ): Promise<{ alreadyRegistered: boolean }> {
     if (!supabase) throw new Error('Auth not enabled');
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { emailRedirectTo: `${window.location.origin}${base}/auth/callback` }
     });
     if (error) throw error;
+    // `identities` is undefined when emailConfirm is off and the user is
+    // auto-signed-in. When email confirmation is required (production), an
+    // empty array is the documented signal for "this email is already
+    // registered". Treat both the literal empty case AND the explicit-empty
+    // case the same way.
+    const identities = data?.user?.identities ?? null;
+    const alreadyRegistered = Array.isArray(identities) && identities.length === 0;
+    return { alreadyRegistered };
   },
 
   /**
