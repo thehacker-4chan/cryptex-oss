@@ -200,7 +200,8 @@ Email templates (`docs/SUPABASE-EMAIL-TEMPLATES.md`) are OTP-first with `{{ .Tok
 
 ## Recent handoffs
 
-- `docs/2026-05-07-handoff-auth-hardening.md` — **most recent** — PKCE flow restored, OAuth-safe verifyCurrentPassword, email masking, sign-out button, rate-limit primitive
+- `docs/2026-05-07-handoff-tier-3-roadmap.md` — **READ FIRST after compact** — Tier 3 deferred-items roadmap (chain orchestrator effectiveness, tab persistence, selected-text encoding, reasoning panel status, UI polish). Audited 2026-05-07; pick a track and execute.
+- `docs/2026-05-07-handoff-auth-hardening.md` — PKCE flow restored, OAuth-safe verifyCurrentPassword, email masking, sign-out button, rate-limit primitive
 - `docs/2026-05-06-handoff-redteam-expansion.md` — R1 retirement + E1-E5 expansion (36 mutators, 8 classifiers, 26 tools tabs)
 - `docs/DEPLOY-DOKPLOY-SUPABASE.md`, `docs/DEPLOY-OAUTH-AND-EMAIL.md`, `docs/DEPLOY-ANALYTICS-AND-ADSENSE.md` — operational guides
-- Active plan: `C:\Users\m4xx\.claude\plans\jazzy-gathering-kernighan.md` — security hardening Phases 0/1A/1B/2/3, 1A+2.1+2.2 done, Phase 3 deferred (deploy-contract changes)
+- Active plan: `C:\Users\m4xx\.claude\plans\jazzy-gathering-kernighan.md` — auth hardening Phases 0/1A/2/3 (DONE), critical RLS migration (DONE — apply via SQL editor), encrypted BYOK vault (DONE), slash-command composition fix (DONE), migrate-keys bug fix (DONE), Tier 3 roadmap (DEFERRED, pick a track)
