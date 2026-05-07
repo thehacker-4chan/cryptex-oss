@@ -232,6 +232,30 @@ export async function sendTurn(
             ? buildToolSchemas(chat.settings.enabledToolIds)
             : undefined;
 
+        // E2 image_typographic: if the rephrased turn carries an embedded
+        // `data:image/...` URL, strip it from the visible text and attach as
+        // an image content-part on the last user message so vision models
+        // OCR the adversarial payload at attention time.
+        if (t.id === 'image_typographic') {
+          const imgRe = /data:image\/[a-z0-9+.-]+;base64,[A-Za-z0-9+/=]+/i;
+          const imgMatch = rephrased.match(imgRe);
+          const lastIdx = providerMessages.length - 1;
+          if (imgMatch && lastIdx >= 0 && providerMessages[lastIdx].role === 'user') {
+            const imageUrl = imgMatch[0];
+            const cleanText = rephrased.replace(imageUrl, '').trim();
+            providerMessages[lastIdx] = {
+              role: 'user',
+              content: [
+                { type: 'image', image: imageUrl },
+                { type: 'text', text: cleanText }
+              ]
+            };
+          }
+          // No image found → fall through as plain text. Mutator template
+          // already documented this expectation; user pastes a data URL into
+          // the slash input when running this technique.
+        }
+
         const req: ChatRequest = {
           model: chat.modelQualifiedId,
           messages: providerMessages,
@@ -249,15 +273,73 @@ export async function sendTurn(
         let finalUsage: MessageRow['tokenUsage'];
         let finalFinishReason: string | undefined;
 
-        try {
-          for await (const evt of streamChat(req)) {
-            if (evt.type === 'text-delta') { accText += evt.delta; hooks.onTextDelta?.(evt.delta); }
-            else if (evt.type === 'reasoning-delta') { accReasoning += evt.delta; hooks.onReasoningDelta?.(evt.delta); }
-            else if (evt.type === 'finish') { finalFinishReason = evt.finishReason; finalUsage = evt.usage as MessageRow['tokenUsage']; }
+        // E1.5b fan-out for runner-level techniques. best_of_k samples K
+        // calls at the same temperature; temperature_ladder samples once per
+        // step. Both surface ALL candidates as a single labelled assistant
+        // message — the user is the judge (typical red-team UX). Single-shot
+        // streaming is preserved for every other technique.
+        const fanout =
+          t.id === 'best_of_k'
+            ? Array.from({ length: 5 }, () => chat.settings.temperature ?? 1.0)
+            : t.id === 'temperature_ladder'
+              ? [0.0, 0.5, 1.0, 1.5]
+              : null;
+
+        if (fanout) {
+          try {
+            const candidates = await Promise.all(
+              fanout.map(async (temp, idx) => {
+                try {
+                  const resp = await gatewayChat({ ...req, temperature: temp });
+                  return { idx, temp, content: resp.content, usage: resp.usage as MessageRow['tokenUsage'], error: null as string | null };
+                } catch (err) {
+                  return { idx, temp, content: '', usage: undefined as MessageRow['tokenUsage'], error: (err as Error).message };
+                }
+              })
+            );
+            const heading = t.id === 'best_of_k' ? 'Best-of-K candidates' : 'Temperature ladder';
+            accText =
+              `# ${heading} (${candidates.length} samples)\n\n` +
+              candidates
+                .map((c) => {
+                  const label =
+                    t.id === 'best_of_k'
+                      ? `## Candidate ${c.idx + 1} (T=${c.temp})`
+                      : `## T=${c.temp}`;
+                  return c.error ? `${label}\n\n_(error: ${c.error})_` : `${label}\n\n${c.content}`;
+                })
+                .join('\n\n---\n\n');
+            // Aggregate token usage across candidates so the per-message
+            // counter reflects the full fan-out cost, not just one sample.
+            finalUsage = candidates.reduce<MessageRow['tokenUsage']>((acc, c) => {
+              if (!c.usage) return acc;
+              return {
+                inputTokens: (acc?.inputTokens ?? 0) + (c.usage.inputTokens ?? 0),
+                outputTokens: (acc?.outputTokens ?? 0) + (c.usage.outputTokens ?? 0),
+                cachedInputTokens:
+                  (acc?.cachedInputTokens ?? 0) + (c.usage.cachedInputTokens ?? 0),
+                reasoningTokens:
+                  (acc?.reasoningTokens ?? 0) + (c.usage.reasoningTokens ?? 0)
+              };
+            }, undefined);
+            finalFinishReason = candidates.every((c) => !c.error) ? 'stop' : 'error';
+            // Emit the combined text in one delta so streaming consumers see content.
+            hooks.onTextDelta?.(accText);
+          } catch (err) {
+            hooks.onError?.(err as Error);
+            return;
           }
-        } catch (err) {
-          hooks.onError?.(err as Error);
-          return;
+        } else {
+          try {
+            for await (const evt of streamChat(req)) {
+              if (evt.type === 'text-delta') { accText += evt.delta; hooks.onTextDelta?.(evt.delta); }
+              else if (evt.type === 'reasoning-delta') { accReasoning += evt.delta; hooks.onReasoningDelta?.(evt.delta); }
+              else if (evt.type === 'finish') { finalFinishReason = evt.finishReason; finalUsage = evt.usage as MessageRow['tokenUsage']; }
+            }
+          } catch (err) {
+            hooks.onError?.(err as Error);
+            return;
+          }
         }
 
         const asstMsg = await repo.saveMessage({

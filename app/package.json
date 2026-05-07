@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite dev",
     "dev:clean": "npm run clean && vite dev",
-    "build": "vite build",
+    "build": "vite build && node ../scripts/compute-csp-hashes.cjs",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "test:unit": "vitest run",

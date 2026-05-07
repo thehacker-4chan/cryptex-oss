@@ -1,18 +1,36 @@
 import { browser } from '$app/environment';
 import type { ProviderRecord, ProviderId } from './types';
+import { getKeyStorage } from './storage-strategy';
 
 const STORAGE_KEY = 'cryptex.providers';
 
+// Storage selection is delegated to `storage-strategy.ts` so the user can
+// flip between localStorage (default) and sessionStorage (ephemeral, opt-in
+// in Settings → Security). Reads check both so a flip mid-session still
+// finds existing data.
+
 function tryGetLS(key: string): string | null {
   try {
-    if (typeof localStorage !== 'undefined') return localStorage.getItem(key);
+    const primary = getKeyStorage();
+    if (primary) {
+      const v = primary.getItem(key);
+      if (v !== null) return v;
+    }
+    // Fallback: read from the other Storage in case migration happened
+    // mid-load or the preference flag flipped.
+    if (typeof localStorage !== 'undefined') {
+      const v = localStorage.getItem(key);
+      if (v !== null) return v;
+    }
+    if (typeof sessionStorage !== 'undefined') return sessionStorage.getItem(key);
   } catch { /* ignore */ }
   return null;
 }
 
 function trySetLS(key: string, value: string): void {
   try {
-    if (typeof localStorage !== 'undefined') localStorage.setItem(key, value);
+    const target = getKeyStorage();
+    if (target) target.setItem(key, value);
   } catch { /* ignore */ }
 }
 

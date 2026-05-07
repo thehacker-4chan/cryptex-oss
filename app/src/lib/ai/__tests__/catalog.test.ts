@@ -4,18 +4,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 beforeEach(() => {
   vi.resetModules();
   vi.useFakeTimers();
-  // Provide a minimal localStorage stub in the test environment.
-  const store = new Map<string, string>();
-  Object.defineProperty(globalThis, 'localStorage', {
-    value: {
-      getItem: (k: string) => store.get(k) ?? null,
-      setItem: (k: string, v: string) => { store.set(k, v); },
-      removeItem: (k: string) => { store.delete(k); },
-      clear: () => { store.clear(); }
-    },
-    writable: true,
-    configurable: true
-  });
+  // Use JSDOM's real localStorage; just clear it between tests. Replacing
+  // global localStorage with a fake leaked into other test files in the
+  // singleFork pool and broke their Object.keys(localStorage) usage.
+  localStorage.clear();
 });
 
 afterEach(() => {

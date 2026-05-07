@@ -70,6 +70,16 @@ function loadScript(): void {
   script.id = SCRIPT_ID;
   script.async = true;
   script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(id)}`;
+  // Optional Subresource Integrity. GA's gtag.js body rotates regularly,
+  // so we don't bundle a static hash — operators set
+  // `PUBLIC_GA_SRI=sha384-<base64>` at build time after fetching the live
+  // body and computing the hash. When unset (default), no integrity attr
+  // is set and the script loads normally.
+  const sri = import.meta.env.PUBLIC_GA_SRI;
+  if (typeof sri === 'string' && sri.startsWith('sha')) {
+    script.integrity = sri;
+    script.crossOrigin = 'anonymous';
+  }
   document.head.appendChild(script);
 }
 

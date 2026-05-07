@@ -30,6 +30,15 @@ function loadScript(): void {
   script.async = true;
   script.crossOrigin = 'anonymous';
   script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(client)}`;
+  // Optional Subresource Integrity (SRI). AdSense changes the script body
+  // frequently, so we cannot ship a static hash in the repo — operators who
+  // want SRI fetch the live body, compute sha384, and set
+  // `PUBLIC_ADSENSE_SRI=sha384-<base64>` at build time. When unset (default),
+  // no integrity attribute is set and the script loads normally.
+  const sri = import.meta.env.PUBLIC_ADSENSE_SRI;
+  if (typeof sri === 'string' && sri.startsWith('sha')) {
+    script.integrity = sri;
+  }
   document.head.appendChild(script);
 }
 

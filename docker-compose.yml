@@ -53,6 +53,11 @@ services:
         PUBLIC_SUPABASE_URL: "${PUBLIC_SUPABASE_URL:-}"
         PUBLIC_SUPABASE_ANON_KEY: "${PUBLIC_SUPABASE_ANON_KEY:-}"
         PUBLIC_GODMODE_LOCAL_ENABLED: "${PUBLIC_GODMODE_LOCAL_ENABLED:-true}"
+        # Optional SRI hashes for AdSense + GA scripts. Format
+        # `sha384-<base64>`. Default empty = no integrity attribute set.
+        # See docs/DEPLOY-ANALYTICS-AND-ADSENSE.md for refresh procedure.
+        PUBLIC_ADSENSE_SRI: "${PUBLIC_ADSENSE_SRI:-}"
+        PUBLIC_GA_SRI: "${PUBLIC_GA_SRI:-}"
 
     environment:
       TZ: "${TZ:-UTC}"

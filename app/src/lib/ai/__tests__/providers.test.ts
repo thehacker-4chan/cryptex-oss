@@ -1,20 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-function installLS() {
-  const store = new Map<string, string>();
-  const ls = {
-    getItem: vi.fn((k: string) => store.get(k) ?? null),
-    setItem: vi.fn((k: string, v: string) => { store.set(k, v); }),
-    removeItem: vi.fn((k: string) => { store.delete(k); }),
-    clear: vi.fn(() => { store.clear(); }),
-    get length() { return store.size; },
-    key: vi.fn((i: number) => [...store.keys()][i] ?? null)
-  };
-  Object.defineProperty(globalThis, 'localStorage', { value: ls, writable: true, configurable: true });
-  return store;
-}
-
-beforeEach(() => { installLS(); vi.resetModules(); });
+// Use JSDOM's real localStorage (provided by the vitest jsdom env) instead of
+// installing a fake. The previous fake leaked across the singleFork test
+// pool — it exposed only function properties, so later tests calling
+// Object.keys(localStorage) saw garbage instead of stored cache keys.
+beforeEach(() => {
+  localStorage.clear();
+  vi.resetModules();
+});
 
 describe('providers registry', () => {
   it('seeds OpenRouter record from legacy cryptex.openrouterApiKey on first load', async () => {

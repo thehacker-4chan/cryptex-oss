@@ -30,6 +30,14 @@ ARG VITE_AUTH_ENABLED=""
 ARG PUBLIC_SUPABASE_URL=""
 ARG PUBLIC_SUPABASE_ANON_KEY=""
 ARG PUBLIC_GODMODE_LOCAL_ENABLED="true"
+# Optional Subresource Integrity (SRI) hashes for the third-party AdSense
+# and GA scripts. Format: `sha384-<base64>`. Default empty = no integrity
+# attribute set (current behavior). Operators who want SRI hardening fetch
+# the live script body, run `cat script.js | openssl dgst -sha384 -binary | base64`,
+# and pass it here. AdSense + GA rotate scripts often, so a stale hash
+# silently breaks ads/analytics — refresh on a schedule when used.
+ARG PUBLIC_ADSENSE_SRI=""
+ARG PUBLIC_GA_SRI=""
 
 # Expose them as environment variables so Vite's build step inlines them
 # into the static output. (PUBLIC_* and VITE_* are read at BUILD time by
@@ -38,6 +46,8 @@ ARG PUBLIC_GODMODE_LOCAL_ENABLED="true"
 ENV BASE_PATH=${BASE_PATH} \
     PUBLIC_ADSENSE_CLIENT=${PUBLIC_ADSENSE_CLIENT} \
     PUBLIC_GA_ID=${PUBLIC_GA_ID} \
+    PUBLIC_ADSENSE_SRI=${PUBLIC_ADSENSE_SRI} \
+    PUBLIC_GA_SRI=${PUBLIC_GA_SRI} \
     VITE_AUTH_ENABLED=${VITE_AUTH_ENABLED} \
     PUBLIC_SUPABASE_URL=${PUBLIC_SUPABASE_URL} \
     PUBLIC_SUPABASE_ANON_KEY=${PUBLIC_SUPABASE_ANON_KEY} \
@@ -57,6 +67,8 @@ RUN sh -c '\
   echo "[cryptex-build] PUBLIC_GODMODE_LOCAL_ENABLED=${PUBLIC_GODMODE_LOCAL_ENABLED:-MISSING}" ; \
   echo "[cryptex-build] PUBLIC_ADSENSE_CLIENT=${PUBLIC_ADSENSE_CLIENT:-MISSING}" ; \
   echo "[cryptex-build] PUBLIC_GA_ID=${PUBLIC_GA_ID:-MISSING}" ; \
+  echo "[cryptex-build] PUBLIC_ADSENSE_SRI=$(status "$PUBLIC_ADSENSE_SRI")" ; \
+  echo "[cryptex-build] PUBLIC_GA_SRI=$(status "$PUBLIC_GA_SRI")" ; \
 '
 
 # The SvelteKit build reads transformers from ../src/transformers via a Vite
@@ -68,9 +80,29 @@ COPY app/package*.json ./app/
 RUN cd app && npm ci --no-audit --no-fund --prefer-offline
 
 COPY app ./app
+COPY scripts ./scripts
+COPY nginx.conf ./nginx.conf
 
-# Produce the static output at /build/app/build/
+# Produce the static output at /build/app/build/. The build script also runs
+# scripts/compute-csp-hashes.cjs as a post-step (see app/package.json), which
+# walks `app/build/` and writes `app/build/csp-script-hashes.txt`. We then
+# substitute that into `nginx.conf`'s `__CSP_SCRIPT_HASHES__` placeholder so
+# the stage-2 image ships a CSP without `'unsafe-inline'`.
 RUN cd app && npm run build
+
+# Substitute computed sha256-base64 inline-script hashes into nginx.conf.
+# Fail fast if the placeholder isn't found (template drift) or the hash
+# file is empty (build-pipeline regression). Either case means the CSP
+# would degrade to malformed and silently disable script-src checking.
+RUN set -e ; \
+    HASH_FILE=/build/app/build/csp-script-hashes.txt ; \
+    [ -s "$HASH_FILE" ] || { echo "[cryptex-build] FATAL: $HASH_FILE missing or empty" >&2 ; exit 1 ; } ; \
+    grep -q __CSP_SCRIPT_HASHES__ /build/nginx.conf || { echo "[cryptex-build] FATAL: nginx.conf is missing __CSP_SCRIPT_HASHES__ placeholder" >&2 ; exit 1 ; } ; \
+    HASHES="$(tr -d '\n\r' < $HASH_FILE)" ; \
+    awk -v hashes="$HASHES" '{ gsub(/__CSP_SCRIPT_HASHES__/, hashes); print }' /build/nginx.conf > /build/nginx.conf.new ; \
+    mv /build/nginx.conf.new /build/nginx.conf ; \
+    grep -c "sha256-" /build/nginx.conf | awk '{ if ($1 < 1) { print "[cryptex-build] FATAL: substituted nginx.conf has no sha256 hashes" > "/dev/stderr" ; exit 1 } print "[cryptex-build] CSP hashes substituted: " $1 " sha256 token(s) in nginx.conf" }' ; \
+    rm "$HASH_FILE"
 
 # Strip source-map and other non-runtime bits to shrink the image.
 RUN find /build/app/build -name '*.map' -type f -delete
@@ -85,7 +117,10 @@ RUN apk update && apk upgrade --no-cache && \
     rm -f /etc/nginx/conf.d/default.conf
 
 COPY --from=builder /build/app/build /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/nginx.conf
+# nginx.conf comes from the builder stage where `__CSP_SCRIPT_HASHES__`
+# was substituted with build-time-computed sha256-base64 hashes. Pulling
+# from the local repo here would re-introduce the placeholder.
+COPY --from=builder /build/nginx.conf /etc/nginx/nginx.conf
 
 # OCI image metadata — shows up in Dokploy / registry UIs
 LABEL org.opencontainers.image.title="Cryptex" \

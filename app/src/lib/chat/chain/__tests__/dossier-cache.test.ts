@@ -7,6 +7,10 @@ describe('dossier-cache', () => {
       localStorage.clear();
     }
     vi.useRealTimers();
+    // Restore any spies/mocks left over from other test files in the same
+    // worker. Without this, a sibling file that spies on Storage.prototype
+    // and forgets to restore can break our localStorage assertions.
+    vi.restoreAllMocks();
   });
 
   it('round-trips a cached dossier', () => {
@@ -54,9 +58,15 @@ describe('dossier-cache', () => {
   });
 
   it('setCachedDossier silently no-ops when localStorage.setItem throws (quota exceeded)', () => {
-    const original = Storage.prototype.setItem;
-    Storage.prototype.setItem = vi.fn(() => { throw new Error('QuotaExceeded'); });
-    expect(() => setCachedDossier('x', 'y', [])).not.toThrow();
-    Storage.prototype.setItem = original;
+    const spy = vi
+      .spyOn(Storage.prototype, 'setItem')
+      .mockImplementation(() => {
+        throw new Error('QuotaExceeded');
+      });
+    try {
+      expect(() => setCachedDossier('x', 'y', [])).not.toThrow();
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

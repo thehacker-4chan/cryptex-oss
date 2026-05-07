@@ -1,21 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-function installLS() {
-  const store = new Map<string, string>();
-  Object.defineProperty(globalThis, 'localStorage', {
-    value: {
-      getItem: vi.fn((k: string) => store.get(k) ?? null),
-      setItem: vi.fn((k: string, v: string) => { store.set(k, v); }),
-      removeItem: vi.fn((k: string) => { store.delete(k); }),
-      clear: vi.fn(() => { store.clear(); }),
-      get length() { return store.size; },
-      key: vi.fn((i: number) => [...store.keys()][i] ?? null)
-    },
-    writable: true, configurable: true
-  });
-}
-
-beforeEach(() => { installLS(); vi.resetModules(); });
+// Use JSDOM's real localStorage (provided by the vitest jsdom environment)
+// instead of installing a fake at globalThis. The previous fake leaked across
+// the singleFork test pool and broke unrelated tests that call
+// Object.keys(localStorage) (the fake exposed only function properties, no
+// stored keys).
+beforeEach(() => {
+  localStorage.clear();
+  vi.resetModules();
+});
 
 describe('chatMode store', () => {
   it('defaults to "tools" on first load', async () => {
