@@ -1,0 +1,32 @@
+[
+  {
+    "id": "gpt-oss-120b",
+    "label": "GPT-OSS 120B",
+    "qualifiedId": "openrouter:openai/gpt-oss-120b",
+    "family": "open-frontier"
+  },
+  {
+    "id": "claude-sonnet-3.5",
+    "label": "Claude 3.5 Sonnet",
+    "qualifiedId": "openrouter:anthropic/claude-3.5-sonnet",
+    "family": "anthropic-frontier"
+  },
+  {
+    "id": "claude-haiku-3.5",
+    "label": "Claude 3.5 Haiku",
+    "qualifiedId": "openrouter:anthropic/claude-3.5-haiku",
+    "family": "anthropic-fast"
+  },
+  {
+    "id": "gemini-flash-2.5",
+    "label": "Gemini 2.5 Flash",
+    "qualifiedId": "openrouter:google/gemini-2.5-flash",
+    "family": "google-fast"
+  },
+  {
+    "id": "qwen3-32b",
+    "label": "Qwen3 32B",
+    "qualifiedId": "openrouter:qwen/qwen3-32b",
+    "family": "open-mid"
+  }
+]

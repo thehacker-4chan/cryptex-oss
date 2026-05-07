@@ -15,6 +15,7 @@
     "app:dev": "cd app && npm run dev",
     "app:check": "cd app && npm run check",
     "app:test": "cd app && npm run test:unit",
+    "chain-eval": "cd app && npx vite-node ../scripts/chain-eval/run.ts --",
     "start": "serve dist -l 8080",
     "preview": "npm run build && serve dist -l 8080",
     "test": "node tests/test_universal.js",
