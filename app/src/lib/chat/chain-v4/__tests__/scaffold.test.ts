@@ -54,7 +54,7 @@ describe('chain-v4 scaffold (phase 1)', () => {
     expect(DEFAULT_V4_BUDGET.maxWallclockSec).toBe(300);
   });
 
-  it("runAttackSessionV4 with mode='tap' falls back to v3 + yields stream lifecycle bookends", async () => {
+  it("runAttackSessionV4 with mode='crescendo' falls back to v3 + yields stream lifecycle bookends", async () => {
     const gatewayChat = vi.fn();
     // v3 fallback path: refineTurn → progress judge → compliance judge → extraction judge.
     gatewayChat.mockResolvedValueOnce({ content: 'Refined opener.' });
@@ -71,7 +71,7 @@ describe('chain-v4 scaffold (phase 1)', () => {
 
     const events: OrchEvent[] = [];
     for await (const ev of runAttackSessionV4(
-      makeV4Ctx({ mode: 'tap', gatewayChat, streamChat })
+      makeV4Ctx({ mode: 'crescendo', gatewayChat, streamChat })
     )) {
       events.push(ev);
     }

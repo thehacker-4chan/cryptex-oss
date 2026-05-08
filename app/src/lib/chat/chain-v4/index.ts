@@ -24,6 +24,7 @@ import {
 } from '../chain/orchestrator';
 import type { ChainV4Context } from './types';
 import { runPairLoop } from './pair';
+import { runTapLoop } from './tap';
 
 export type { ChainV4Context };
 export {
@@ -79,9 +80,14 @@ export async function* runAttackSessionV4(
         yield ev;
         if (ev.type === 'finished') outcome = ev.outcome;
       }
+    } else if (ctx.mode === 'tap') {
+      for await (const ev of runTapLoop(ctx, { streamId })) {
+        yield ev;
+        if (ev.type === 'finished') outcome = ev.outcome;
+      }
     } else {
-      // tap / crescendo not yet implemented — fall back to v3 with a
-      // marker event so the user knows v4 didn't run the requested mode.
+      // crescendo not yet implemented — fall back to v3 with a marker
+      // event so the user knows v4 didn't run the requested mode.
       yield {
         type: 'error',
         code: 'mode_not_implemented',
