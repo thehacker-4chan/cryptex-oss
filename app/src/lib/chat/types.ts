@@ -480,15 +480,23 @@ export type OrchEvent =
       streamId: number;
       outcome: 'extracted' | 'partial' | 'abandoned';
     }
-  // Cost telemetry — emitted after every gateway call inside the chain
-  // engines (attacker / target / judge). Strictly additive: existing
-  // event consumers no-op on unknown variants in their default switch
-  // branch. The UI's chainCost store accumulates these into a per-run
-  // running total that the cost chip reads.
+  // Token-usage telemetry — emitted after every gateway call inside
+  // the chain engines (attacker / target / judge). Strictly additive:
+  // existing event consumers no-op on unknown variants in their
+  // default switch branch. The UI's chainUsage store accumulates
+  // these into a per-run running total that the usage chip reads.
+  //
+  // `inputTokens` / `outputTokens` are optional — undefined means the
+  // upstream provider didn't report usage for this call (some
+  // openai-compat servers omit usage in stream finish). The store
+  // still records the call (so the user knows it happened) but
+  // surfaces "?" instead of silent 0.
   | {
       type: 'usage';
       role: 'orchestrator' | 'target' | 'judge';
       model: string;
-      inputTokens: number;
-      outputTokens: number;
+      inputTokens?: number;
+      outputTokens?: number;
+      cachedInputTokens?: number;
+      reasoningTokens?: number;
     };

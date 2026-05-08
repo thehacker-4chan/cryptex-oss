@@ -149,15 +149,10 @@ export async function* runTapLoop(
 
   const cheap = ctx.cheapModelId ?? ctx.judgeModelId;
 
-  // Strategy header for the UI — TAP's "persona" is the root layer's
-  // first persona; downstream branch personas surface on their own
-  // orchestrator turns. No synthetic strategyId leak.
-  yield {
-    type: 'strategy_started',
-    iteration: 0,
-    stepBudget: maxTargetQueries,
-    personaId: 'tap-tree'
-  };
+  // No synthetic strategy_started header here — each branch's
+  // persona emits its own real strategy_started inside the loop.
+  // Removed `personaId: 'tap-tree'` because it surfaced as an empty
+  // badge in StrategyTraceBar before any real persona was picked.
 
   let queriesUsed = 0;
   let outcome: 'extracted' | 'partial' | 'abandoned' = 'abandoned';
@@ -206,15 +201,15 @@ export async function* runTapLoop(
       prompt = r.output.prompt;
       improvement = r.output.improvement;
       salvaged = r.salvaged;
-      if ((r.usage.inputTokens ?? 0) + (r.usage.outputTokens ?? 0) > 0) {
-        yield {
-          type: 'usage',
-          role: 'orchestrator',
-          model: ctx.orchestratorModelId,
-          inputTokens: r.usage.inputTokens ?? 0,
-          outputTokens: r.usage.outputTokens ?? 0
-        };
-      }
+      yield {
+        type: 'usage',
+        role: 'orchestrator',
+        model: ctx.orchestratorModelId,
+        inputTokens: r.usage.inputTokens,
+        outputTokens: r.usage.outputTokens,
+        cachedInputTokens: r.usage.cachedInputTokens,
+        reasoningTokens: r.usage.reasoningTokens
+      };
     } catch (err) {
       if ((err as Error)?.name === 'AbortError' || ctx.signal.aborted) {
         outcome = 'abandoned';
@@ -273,8 +268,13 @@ export async function* runTapLoop(
     const targetStart = Date.now();
     let response = '';
     let targetError: string | undefined;
-    let targetUsageInput = 0;
-    let targetUsageOutput = 0;
+    let targetUsage: {
+      inputTokens?: number;
+      outputTokens?: number;
+      cachedInputTokens?: number;
+      reasoningTokens?: number;
+    } | null = null;
+    let targetGotFinish = false;
     try {
       for await (const ev of ctx.streamChat({
         model: ctx.targetModelId,
@@ -285,8 +285,8 @@ export async function* runTapLoop(
           response += ev.delta;
           yield { type: 'target_reply_delta', iteration: queriesUsed, delta: ev.delta };
         } else if (ev.type === 'finish') {
-          targetUsageInput = ev.usage?.inputTokens ?? 0;
-          targetUsageOutput = ev.usage?.outputTokens ?? 0;
+          targetGotFinish = true;
+          targetUsage = ev.usage ?? null;
         }
       }
     } catch (err) {
@@ -297,13 +297,15 @@ export async function* runTapLoop(
       targetError = (err as Error)?.message ?? String(err);
       yield { type: 'error', code: 'target_stream', message: targetError, iteration: queriesUsed };
     }
-    if (targetUsageInput + targetUsageOutput > 0) {
+    if (targetGotFinish) {
       yield {
         type: 'usage',
         role: 'target',
         model: ctx.targetModelId,
-        inputTokens: targetUsageInput,
-        outputTokens: targetUsageOutput
+        inputTokens: targetUsage?.inputTokens,
+        outputTokens: targetUsage?.outputTokens,
+        cachedInputTokens: targetUsage?.cachedInputTokens,
+        reasoningTokens: targetUsage?.reasoningTokens
       };
     }
 
@@ -324,13 +326,15 @@ export async function* runTapLoop(
         },
         response
       );
-      if (judge.usage && (judge.usage.inputTokens ?? 0) + (judge.usage.outputTokens ?? 0) > 0) {
+      if (judge.usage) {
         yield {
           type: 'usage',
           role: 'judge',
           model: ctx.judgeModelId,
-          inputTokens: judge.usage.inputTokens ?? 0,
-          outputTokens: judge.usage.outputTokens ?? 0
+          inputTokens: judge.usage.inputTokens,
+          outputTokens: judge.usage.outputTokens,
+          cachedInputTokens: judge.usage.cachedInputTokens,
+          reasoningTokens: judge.usage.reasoningTokens
         };
       }
     }
@@ -456,15 +460,15 @@ export async function* runTapLoop(
             prompt = r.output.prompt;
             improvement = r.output.improvement;
             salvaged = r.salvaged;
-            if ((r.usage.inputTokens ?? 0) + (r.usage.outputTokens ?? 0) > 0) {
-              yield {
-                type: 'usage',
-                role: 'orchestrator',
-                model: ctx.orchestratorModelId,
-                inputTokens: r.usage.inputTokens ?? 0,
-                outputTokens: r.usage.outputTokens ?? 0
-              };
-            }
+            yield {
+              type: 'usage',
+              role: 'orchestrator',
+              model: ctx.orchestratorModelId,
+              inputTokens: r.usage.inputTokens,
+              outputTokens: r.usage.outputTokens,
+              cachedInputTokens: r.usage.cachedInputTokens,
+              reasoningTokens: r.usage.reasoningTokens
+            };
           } catch (err) {
             if ((err as Error)?.name === 'AbortError' || ctx.signal.aborted) {
               outcome = 'abandoned';
@@ -537,8 +541,13 @@ export async function* runTapLoop(
           const tStart = Date.now();
           let response = '';
           let targetError: string | undefined;
-          let targetUsageInput = 0;
-          let targetUsageOutput = 0;
+          let targetUsage: {
+            inputTokens?: number;
+            outputTokens?: number;
+            cachedInputTokens?: number;
+            reasoningTokens?: number;
+          } | null = null;
+          let targetGotFinish = false;
           try {
             for await (const ev of ctx.streamChat({
               model: ctx.targetModelId,
@@ -553,8 +562,8 @@ export async function* runTapLoop(
                   delta: ev.delta
                 };
               } else if (ev.type === 'finish') {
-                targetUsageInput = ev.usage?.inputTokens ?? 0;
-                targetUsageOutput = ev.usage?.outputTokens ?? 0;
+                targetGotFinish = true;
+                targetUsage = ev.usage ?? null;
               }
             }
           } catch (err) {
@@ -570,13 +579,15 @@ export async function* runTapLoop(
               iteration: queriesUsed
             };
           }
-          if (targetUsageInput + targetUsageOutput > 0) {
+          if (targetGotFinish) {
             yield {
               type: 'usage',
               role: 'target',
               model: ctx.targetModelId,
-              inputTokens: targetUsageInput,
-              outputTokens: targetUsageOutput
+              inputTokens: targetUsage?.inputTokens,
+              outputTokens: targetUsage?.outputTokens,
+              cachedInputTokens: targetUsage?.cachedInputTokens,
+              reasoningTokens: targetUsage?.reasoningTokens
             };
           }
 
@@ -597,13 +608,15 @@ export async function* runTapLoop(
               },
               response
             );
-            if (judge.usage && (judge.usage.inputTokens ?? 0) + (judge.usage.outputTokens ?? 0) > 0) {
+            if (judge.usage) {
               yield {
                 type: 'usage',
                 role: 'judge',
                 model: ctx.judgeModelId,
-                inputTokens: judge.usage.inputTokens ?? 0,
-                outputTokens: judge.usage.outputTokens ?? 0
+                inputTokens: judge.usage.inputTokens,
+                outputTokens: judge.usage.outputTokens,
+                cachedInputTokens: judge.usage.cachedInputTokens,
+                reasoningTokens: judge.usage.reasoningTokens
               };
             }
           }

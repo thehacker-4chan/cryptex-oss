@@ -153,17 +153,19 @@ export async function* runPairLoop(
         );
         attackerOutput = r.output;
         attackerSalvaged = r.salvaged;
-        // Cost telemetry — emit per-call usage so the chain workspace
-        // header chip can accumulate live.
-        if ((r.usage.inputTokens ?? 0) + (r.usage.outputTokens ?? 0) > 0) {
-          yield {
-            type: 'usage',
-            role: 'orchestrator',
-            model: ctx.orchestratorModelId,
-            inputTokens: r.usage.inputTokens ?? 0,
-            outputTokens: r.usage.outputTokens ?? 0
-          };
-        }
+        // Token-usage telemetry — always emit so the chip can record
+        // that a call happened, even if the provider didn't report
+        // tokens. Undefined values surface as "?" in the popover
+        // rather than silent 0.
+        yield {
+          type: 'usage',
+          role: 'orchestrator',
+          model: ctx.orchestratorModelId,
+          inputTokens: r.usage.inputTokens,
+          outputTokens: r.usage.outputTokens,
+          cachedInputTokens: r.usage.cachedInputTokens,
+          reasoningTokens: r.usage.reasoningTokens
+        };
       } catch (err) {
         if ((err as Error)?.name === 'AbortError' || ctx.signal.aborted) {
           aborted = true;
@@ -248,8 +250,13 @@ export async function* runPairLoop(
       const targetStartedAt = Date.now();
       let targetText = '';
       let targetError: string | undefined;
-      let targetUsageInput = 0;
-      let targetUsageOutput = 0;
+      let targetUsage: {
+        inputTokens?: number;
+        outputTokens?: number;
+        cachedInputTokens?: number;
+        reasoningTokens?: number;
+      } | null = null;
+      let targetGotFinish = false;
       try {
         for await (const ev of ctx.streamChat({
           model: ctx.targetModelId,
@@ -260,8 +267,8 @@ export async function* runPairLoop(
             targetText += ev.delta;
             yield { type: 'target_reply_delta', iteration, delta: ev.delta };
           } else if (ev.type === 'finish') {
-            targetUsageInput = ev.usage?.inputTokens ?? 0;
-            targetUsageOutput = ev.usage?.outputTokens ?? 0;
+            targetGotFinish = true;
+            targetUsage = ev.usage ?? null;
           }
         }
       } catch (err) {
@@ -282,14 +289,20 @@ export async function* runPairLoop(
         consecutiveStreamErrors = 0;
       }
 
-      // Cost telemetry — target usage from the stream's finish event.
-      if (targetUsageInput + targetUsageOutput > 0) {
+      // Token-usage telemetry — emit when the stream produced a
+      // finish event, even if the upstream omitted token counts
+      // (some openai-compat servers do this). Undefined input/output
+      // surface as "?" in the popover so the user knows a call
+      // happened.
+      if (targetGotFinish) {
         yield {
           type: 'usage',
           role: 'target',
           model: ctx.targetModelId,
-          inputTokens: targetUsageInput,
-          outputTokens: targetUsageOutput
+          inputTokens: targetUsage?.inputTokens,
+          outputTokens: targetUsage?.outputTokens,
+          cachedInputTokens: targetUsage?.cachedInputTokens,
+          reasoningTokens: targetUsage?.reasoningTokens
         };
       }
 
@@ -319,15 +332,18 @@ export async function* runPairLoop(
           },
           targetText
         );
-        // Cost telemetry — judge usage (sum of any cheap-model stage-1 +
-        // grader stage-2 calls that actually fired).
-        if (judgeOut.usage && (judgeOut.usage.inputTokens ?? 0) + (judgeOut.usage.outputTokens ?? 0) > 0) {
+        // Token-usage telemetry — judge usage (sum of any
+        // cheap-model stage-1 + grader stage-2 calls that fired).
+        // Skipped only when both stages no-opped (regex-only path).
+        if (judgeOut.usage) {
           yield {
             type: 'usage',
             role: 'judge',
             model: ctx.judgeModelId,
-            inputTokens: judgeOut.usage.inputTokens ?? 0,
-            outputTokens: judgeOut.usage.outputTokens ?? 0
+            inputTokens: judgeOut.usage.inputTokens,
+            outputTokens: judgeOut.usage.outputTokens,
+            cachedInputTokens: judgeOut.usage.cachedInputTokens,
+            reasoningTokens: judgeOut.usage.reasoningTokens
           };
         }
       }

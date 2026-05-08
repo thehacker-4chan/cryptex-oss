@@ -85,7 +85,13 @@ describe('chain-v4 usage events', () => {
     expect(judgeEvent?.model).toBe('mock:judge');
   });
 
-  it('skips usage events when gateway returns no usage data', async () => {
+  it('emits usage events with undefined tokens when upstream omits usage', async () => {
+    // Updated contract (Track D-2): the engine emits a `usage` event
+    // for every gateway/stream call that completed, regardless of
+    // whether the upstream populated `usage`. The chip surfaces
+    // undefined tokens as "?" so the user knows a call happened
+    // even when token counts weren't reported (some openai-compat
+    // servers omit usage in stream finish).
     const gatewayChat = vi.fn();
     // Attacker — no usage in response
     gatewayChat.mockResolvedValueOnce({
@@ -108,9 +114,56 @@ describe('chain-v4 usage events', () => {
       if (ev.type === 'usage') usageEvents.push(ev);
     }
 
-    // No tokens reported → no events emitted. The engine should not emit
-    // zero-token usage events; the chip would treat them as no-ops anyway,
-    // but it's cleaner to skip them at source.
-    expect(usageEvents.length).toBe(0);
+    // Orchestrator + target events are emitted (one each). Judge is
+    // skipped because its cascadedJudge wrapper returns
+    // `usage: undefined` when neither stage actually called the LLM
+    // for usage purposes (regex stage 1 high-confidence + stage 2
+    // returning content but no usage in the mock).
+    const roles = usageEvents.map((e) => e.role);
+    expect(roles).toContain('orchestrator');
+    expect(roles).toContain('target');
+
+    // Tokens are undefined when the provider didn't report them.
+    const orch = usageEvents.find((e) => e.role === 'orchestrator');
+    expect(orch?.inputTokens).toBeUndefined();
+    expect(orch?.outputTokens).toBeUndefined();
+
+    const target = usageEvents.find((e) => e.role === 'target');
+    expect(target?.inputTokens).toBeUndefined();
+    expect(target?.outputTokens).toBeUndefined();
+  });
+
+  it('passes through cachedInputTokens and reasoningTokens when present', async () => {
+    const gatewayChat = vi.fn();
+    gatewayChat.mockResolvedValueOnce({
+      content: '{"improvement":"x","prompt":"<attack>"}',
+      usage: {
+        inputTokens: 200,
+        outputTokens: 50,
+        cachedInputTokens: 150,
+        reasoningTokens: 25
+      }
+    });
+    gatewayChat.mockResolvedValueOnce({ content: '{"refused": false}' });
+    gatewayChat.mockResolvedValueOnce({
+      content: '{"score": 5, "fulfills_goal": false, "reasoning": "x"}'
+    });
+
+    const streamChat = vi.fn().mockImplementation(async function* () {
+      yield { type: 'text-delta', delta: 'response' };
+      yield { type: 'finish', usage: { inputTokens: 100, outputTokens: 200, reasoningTokens: 80 } };
+    });
+
+    const usageEvents: Array<Extract<OrchEvent, { type: 'usage' }>> = [];
+    for await (const ev of runAttackSessionV4(makeCtx({ gatewayChat, streamChat }))) {
+      if (ev.type === 'usage') usageEvents.push(ev);
+    }
+
+    const orch = usageEvents.find((e) => e.role === 'orchestrator');
+    expect(orch?.cachedInputTokens).toBe(150);
+    expect(orch?.reasoningTokens).toBe(25);
+
+    const target = usageEvents.find((e) => e.role === 'target');
+    expect(target?.reasoningTokens).toBe(80);
   });
 });

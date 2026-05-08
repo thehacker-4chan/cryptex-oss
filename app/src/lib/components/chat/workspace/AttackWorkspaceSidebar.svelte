@@ -4,7 +4,7 @@
   import AttackChainTab from '$lib/components/chat/attack-chain/AttackChainTab.svelte';
   import GodmodeTab from '$lib/chat/godmode/GodmodeTab.svelte';
   import AttackHistoryDisclosure from './AttackHistoryDisclosure.svelte';
-  import CostChip from '$lib/components/chat/attack-chain/CostChip.svelte';
+  import UsageChip from '$lib/components/chat/attack-chain/UsageChip.svelte';
   import X from 'lucide-svelte/icons/x';
   import GripVertical from 'lucide-svelte/icons/grip-vertical';
 
@@ -100,11 +100,12 @@
     <span class="text-muted-foreground">Attack workspace</span>
     <span class="text-muted-foreground">·</span>
     <span class="font-medium text-foreground">{toolLabel}</span>
-    <!-- Live cost chip — chain-only. Self-hides when no run is active
-         and no saved cost is loaded. Click expands a popover with the
-         per-role and per-model breakdown. -->
+    <!-- Live usage chip — chain-only. Self-hides when no calls have
+         happened. Click expands a popover with per-role + per-model
+         token breakdown, speed, cached/reasoning sub-totals, and a
+         note when the upstream didn't report token counts. -->
     {#if activeTab === 'chain'}
-      <CostChip />
+      <UsageChip />
     {/if}
     <button
       type="button"

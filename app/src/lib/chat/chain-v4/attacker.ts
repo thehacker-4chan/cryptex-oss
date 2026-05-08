@@ -26,11 +26,21 @@ import { hydratePersona, type PersonaDef } from './personas';
 
 /** Sum two `Usage` envelopes — used to aggregate token counts across
  *  the multiple gatewayChat calls a single `callAttacker` invocation
- *  may make (initial + retry + fallback). */
+ *  may make (initial + retry + fallback). Preserves all four token
+ *  dimensions so cached/reasoning counts flow through to the chip. */
 function sumUsage(a: Usage | undefined, b: Usage | undefined): Usage {
+  // Helper: sum two optional numbers, returning undefined if BOTH
+  // are missing (so we can distinguish "0 reported" from "not
+  // reported" downstream).
+  const opt = (x?: number, y?: number): number | undefined => {
+    if (x === undefined && y === undefined) return undefined;
+    return (x ?? 0) + (y ?? 0);
+  };
   return {
-    inputTokens: (a?.inputTokens ?? 0) + (b?.inputTokens ?? 0),
-    outputTokens: (a?.outputTokens ?? 0) + (b?.outputTokens ?? 0)
+    inputTokens: opt(a?.inputTokens, b?.inputTokens),
+    outputTokens: opt(a?.outputTokens, b?.outputTokens),
+    cachedInputTokens: opt(a?.cachedInputTokens, b?.cachedInputTokens),
+    reasoningTokens: opt(a?.reasoningTokens, b?.reasoningTokens)
   };
 }
 

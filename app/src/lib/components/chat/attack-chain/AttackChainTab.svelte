@@ -17,7 +17,8 @@
   import LayerPicker from './LayerPicker.svelte';
   import RoleModelPicker from './RoleModelPicker.svelte';
   import { catalog } from '$lib/ai/catalog.svelte';
-  import { chainCost, chainCostActions } from '$lib/stores/chainCost.svelte';
+  import { friendlyModelName } from '$lib/ai/model-label';
+  import { chainUsageActions } from '$lib/stores/chainUsage.svelte';
   import { resolveDefaultModels, isUncensoredOrchestrator } from '$lib/chat/chain/default-models';
   import { strategyIds } from '$lib/chat/chain/orchestrator-strategies';
   import { PERSONA_IDS } from '$lib/chat/chain-v4/personas';
@@ -117,27 +118,6 @@
       finalSystemPrompt: '',
       autoRetryEnabled: false
     };
-  }
-
-  /** Resolve a provider-qualified model id ("openai-compat:<uuid>/…",
-   *  "openrouter:anthropic/claude-3.5-sonnet", etc.) to a friendly
-   *  display name. Falls back to a truncated id when the catalog
-   *  hasn't loaded the model (cold catalog or custom-instance entry).
-   *  Used by the collapsed Models disclosure summary so users see
-   *  "DeepSeek V4 Flash" instead of "openai-compat:4cc4e77f-…". */
-  function friendlyModelName(qualifiedId: string): string {
-    if (!qualifiedId) return '—';
-    const m = catalog.find(qualifiedId);
-    if (m?.name) return m.name;
-    // Cold catalog or custom-instance entry — display the model
-    // segment without the provider prefix + UUID.
-    const colonIdx = qualifiedId.indexOf(':');
-    const tail = colonIdx >= 0 ? qualifiedId.slice(colonIdx + 1) : qualifiedId;
-    // openai-compat ids look like "<uuid>/<model-id>" — keep the
-    // model-id half when present.
-    const slashIdx = tail.indexOf('/');
-    const modelPart = slashIdx >= 0 ? tail.slice(slashIdx + 1) : tail;
-    return modelPart.length <= 24 ? modelPart : modelPart.slice(0, 24) + '…';
   }
 
   async function setRoleModel(role: 'orchestrator' | 'target' | 'judge', id: string) {
@@ -254,9 +234,9 @@
         : {})
     });
     currentSessionId = session.id;
-    // Reset the cost chip for this run — accumulate kicks in via the
+    // Reset the usage chip for this run — accumulate kicks in via the
     // `usage` OrchEvent handler in applyEvent() below.
-    chainCostActions.resetForRun(session.id);
+    chainUsageActions.resetForRun(session.id);
 
     // Two-tier persistence: rAF-debounced for delta events (high-frequency),
     // synchronous awaits for boundary events. Replaces a per-event IDB put
@@ -376,10 +356,10 @@
     } finally {
       running = false;
       ctrl = null;
-      // Mark the cost chip as no-longer-running and persist the final
-      // total onto the row. costEstimateUsd is left undefined when the
-      // run included a model without pricing data.
-      chainCostActions.markFinished();
+      // Mark the usage chip as no-longer-running. We stopped writing
+      // costEstimateUsd in Track D-2 (price feature dropped); the field
+      // stays defined on the row for future use but is left undefined.
+      chainUsageActions.markFinished();
       await repo.updateAttackSession(session.id, {
         turns: liveTurns,
         strategyLog: liveLog,
@@ -390,10 +370,7 @@
         finalSummary,
         finalAnswer,
         finalAnswerConfidence,
-        finalAnswerRationale,
-        ...(chainCost.totalCostUsd !== null
-          ? { costEstimateUsd: chainCost.totalCostUsd }
-          : {})
+        finalAnswerRationale
       });
       sessions = await repo.listAttackSessions(chat.id);
     }
@@ -480,11 +457,13 @@
         errorLog = [...errorLog, { code: e.code, message: e.message, iteration: e.iteration, at: Date.now() }];
         break;
       case 'usage':
-        chainCostActions.accumulate({
+        chainUsageActions.accumulate({
           role: e.role,
           model: e.model,
           inputTokens: e.inputTokens,
-          outputTokens: e.outputTokens
+          outputTokens: e.outputTokens,
+          cachedInputTokens: e.cachedInputTokens,
+          reasoningTokens: e.reasoningTokens
         });
         break;
     }

@@ -287,15 +287,15 @@ Now emit the next user message as JSON.`;
         };
         break;
       }
-      if (attackerInputTokens + attackerOutputTokens > 0) {
-        yield {
-          type: 'usage',
-          role: 'orchestrator',
-          model: ctx.orchestratorModelId,
-          inputTokens: attackerInputTokens,
-          outputTokens: attackerOutputTokens
-        };
-      }
+      // Always emit so the chip records that calls happened — even
+      // if the upstream returned 0/undefined tokens for both calls.
+      yield {
+        type: 'usage',
+        role: 'orchestrator',
+        model: ctx.orchestratorModelId,
+        inputTokens: attackerInputTokens,
+        outputTokens: attackerOutputTokens
+      };
 
       if (salvaged) {
         yield {
@@ -325,8 +325,13 @@ Now emit the next user message as JSON.`;
       const targetStartedAt = Date.now();
       let response = '';
       let targetError: string | undefined;
-      let targetUsageInput = 0;
-      let targetUsageOutput = 0;
+      let targetUsage: {
+        inputTokens?: number;
+        outputTokens?: number;
+        cachedInputTokens?: number;
+        reasoningTokens?: number;
+      } | null = null;
+      let targetGotFinish = false;
       try {
         for await (const ev of ctx.streamChat({
           model: ctx.targetModelId,
@@ -345,8 +350,8 @@ Now emit the next user message as JSON.`;
               delta: ev.delta
             };
           } else if (ev.type === 'finish') {
-            targetUsageInput = ev.usage?.inputTokens ?? 0;
-            targetUsageOutput = ev.usage?.outputTokens ?? 0;
+            targetGotFinish = true;
+            targetUsage = ev.usage ?? null;
           }
         }
       } catch (err) {
@@ -362,13 +367,15 @@ Now emit the next user message as JSON.`;
           iteration
         };
       }
-      if (targetUsageInput + targetUsageOutput > 0) {
+      if (targetGotFinish) {
         yield {
           type: 'usage',
           role: 'target',
           model: ctx.targetModelId,
-          inputTokens: targetUsageInput,
-          outputTokens: targetUsageOutput
+          inputTokens: targetUsage?.inputTokens,
+          outputTokens: targetUsage?.outputTokens,
+          cachedInputTokens: targetUsage?.cachedInputTokens,
+          reasoningTokens: targetUsage?.reasoningTokens
         };
       }
 
@@ -404,13 +411,15 @@ Now emit the next user message as JSON.`;
           },
           response
         );
-        if (judge.usage && (judge.usage.inputTokens ?? 0) + (judge.usage.outputTokens ?? 0) > 0) {
+        if (judge.usage) {
           yield {
             type: 'usage',
             role: 'judge',
             model: ctx.judgeModelId,
-            inputTokens: judge.usage.inputTokens ?? 0,
-            outputTokens: judge.usage.outputTokens ?? 0
+            inputTokens: judge.usage.inputTokens,
+            outputTokens: judge.usage.outputTokens,
+            cachedInputTokens: judge.usage.cachedInputTokens,
+            reasoningTokens: judge.usage.reasoningTokens
           };
         }
       }

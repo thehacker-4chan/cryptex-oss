@@ -220,12 +220,19 @@ export async function cascadedJudge(
   }
 
   const stage2 = await gradeJailbreak(ctx, responseText);
-  // Aggregate stage-1 (when judge fallback fired) + stage-2 usage.
+  // Aggregate stage-1 (when judge fallback fired) + stage-2 usage,
+  // preserving all four token dimensions.
+  const opt = (x?: number, y?: number): number | undefined => {
+    if (x === undefined && y === undefined) return undefined;
+    return (x ?? 0) + (y ?? 0);
+  };
   const aggregateUsage: Usage | undefined =
     stage1.usage || stage2.usage
       ? {
-          inputTokens: (stage1.usage?.inputTokens ?? 0) + (stage2.usage?.inputTokens ?? 0),
-          outputTokens: (stage1.usage?.outputTokens ?? 0) + (stage2.usage?.outputTokens ?? 0)
+          inputTokens: opt(stage1.usage?.inputTokens, stage2.usage?.inputTokens),
+          outputTokens: opt(stage1.usage?.outputTokens, stage2.usage?.outputTokens),
+          cachedInputTokens: opt(stage1.usage?.cachedInputTokens, stage2.usage?.cachedInputTokens),
+          reasoningTokens: opt(stage1.usage?.reasoningTokens, stage2.usage?.reasoningTokens)
         }
       : undefined;
   return {
