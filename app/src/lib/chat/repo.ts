@@ -280,7 +280,9 @@ export const repo = {
     );
   },
 
-  /** Persist a new Chain orchestrator session. */
+  /** Persist a new Chain orchestrator session. v4 fields are optional —
+   *  pass them to record which engine produced this row so the History
+   *  panel can render badges and the Dataset Inspector can filter. */
   async saveAttackSession(input: {
     chatId: string;
     objective: string;
@@ -292,6 +294,11 @@ export const repo = {
     finalOutcome: AttackSessionRow['finalOutcome'];
     finalConfidence: AttackSessionRow['finalConfidence'];
     finalSummary: AttackSessionRow['finalSummary'];
+    /** v4 — only set when engineVersion='v4'; missing → row reads as v3. */
+    engineVersion?: AttackSessionRow['engineVersion'];
+    engineMode?: AttackSessionRow['engineMode'];
+    budget?: AttackSessionRow['budget'];
+    streamCount?: AttackSessionRow['streamCount'];
   }): Promise<AttackSessionRow> {
     const now = Date.now();
     const base: AttackSessionRow = {
@@ -313,7 +320,12 @@ export const repo = {
       dossier: null,
       dossierCitations: [],
       strategyRotation: strategyIds(),
-      turnsPerStrategy: 3
+      turnsPerStrategy: 3,
+      // v4 fields (optional; absent → backfillV3 reads as 'v3')
+      ...(input.engineVersion ? { engineVersion: input.engineVersion } : {}),
+      ...(input.engineMode ? { engineMode: input.engineMode } : {}),
+      ...(input.budget ? { budget: input.budget } : {}),
+      ...(typeof input.streamCount === 'number' ? { streamCount: input.streamCount } : {})
     };
     const row: AttackSessionRow = JSON.parse(JSON.stringify(base));
     await db.attackSessions.put(row);

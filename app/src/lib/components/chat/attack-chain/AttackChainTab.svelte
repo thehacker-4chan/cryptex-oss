@@ -3,6 +3,11 @@
   import type { ChatRow, AttackSessionRow, OrchEvent, StrategyLogEntry, AttackSessionTurn } from '$lib/chat/types';
   import { repo } from '$lib/chat/repo';
   import { runAttackSession, type AttackSessionContext } from '$lib/chat/chain/orchestrator';
+  import {
+    runAttackSessionV4,
+    DEFAULT_V4_BUDGET,
+    type ChainV4Context
+  } from '$lib/chat/chain-v4';
   import { injectAttackSessionTurn } from '$lib/chat/dispatch';
   import { chat as gatewayChat, streamChat } from '$lib/ai/gateway';
   import OrchestratorTurnBubble from './OrchestratorTurnBubble.svelte';
@@ -66,6 +71,35 @@
     !isUncensoredOrchestrator(orchestratorModelId)
       && !chat.settings?.attackChainConfig?.recommendedTipDismissed
   );
+
+  // ── v4 engine selection (Phase 7) ────────────────────────────────────
+  // Default 'v3' until phase 9 flips the default; users can opt into v4
+  // here per-chat. engineMode only meaningful when engineVersion === 'v4'.
+  const engineVersion = $derived<'v3' | 'v4'>(
+    chat.settings?.attackChainConfig?.engineVersion ?? 'v3'
+  );
+  const engineMode = $derived<'pair' | 'tap' | 'crescendo'>(
+    chat.settings?.attackChainConfig?.engineMode ?? 'pair'
+  );
+  const maxBudgetUsd = $derived<number>(
+    chat.settings?.attackChainConfig?.maxBudgetUsd ?? DEFAULT_V4_BUDGET.maxUsd
+  );
+  const maxWallclockSec = $derived<number>(
+    chat.settings?.attackChainConfig?.maxWallclockSec ?? DEFAULT_V4_BUDGET.maxWallclockSec
+  );
+
+  async function setEngineVersion(v: 'v3' | 'v4') {
+    const cfg = chat.settings?.attackChainConfig ?? defaultAttackChainConfig();
+    await repo.updateChat(chat.id, {
+      settings: { ...chat.settings, attackChainConfig: { ...cfg, engineVersion: v } }
+    });
+  }
+  async function setEngineMode(m: 'pair' | 'tap' | 'crescendo') {
+    const cfg = chat.settings?.attackChainConfig ?? defaultAttackChainConfig();
+    await repo.updateChat(chat.id, {
+      settings: { ...chat.settings, attackChainConfig: { ...cfg, engineMode: m } }
+    });
+  }
 
   function defaultAttackChainConfig(): import('$lib/chat/types').AttackChainConfig {
     return {
@@ -176,7 +210,21 @@
       strategyLog: [],
       finalOutcome: null,
       finalConfidence: null,
-      finalSummary: null
+      finalSummary: null,
+      // v4 fields — recorded only when engineVersion='v4' so v3 rows
+      // stay untouched.
+      ...(engineVersion === 'v4'
+        ? {
+            engineVersion: 'v4' as const,
+            engineMode,
+            budget: {
+              maxQueries: maxAttempts,
+              maxUsd: maxBudgetUsd,
+              maxWallclockMs: maxWallclockSec * 1000
+            },
+            streamCount: 1
+          }
+        : {})
     });
     currentSessionId = session.id;
 
@@ -219,25 +267,54 @@
     }
 
     const recentMessages = await repo.listMessages(chat.id);
-    const ctx: AttackSessionContext = {
+    const mainChatHistory = recentMessages
+      .slice(-8)
+      .filter((m) => m.role === 'user' || m.role === 'assistant')
+      .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+
+    // v3 vs v4 dispatch — branch on engineVersion. Both engines emit the
+    // same OrchEvent shape so applyEvent handles either path.
+    const useV4 = engineVersion === 'v4';
+
+    const v3Ctx: AttackSessionContext = {
       objective,
       targetModelId,
       orchestratorModelId,
       judgeModelId,
       targetModelLabel: targetModelId,
       maxAttempts,
-      mainChatHistory: recentMessages
-        .slice(-8)
-        .filter((m) => m.role === 'user' || m.role === 'assistant')
-        .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+      mainChatHistory,
       signal: ctrl.signal,
-      // Cast to the engine's narrower interface — gateway accepts extra fields harmlessly.
       gatewayChat: gatewayChat as never,
       streamChat: streamChat as never
     };
 
+    const v4Ctx: ChainV4Context = {
+      objective,
+      targetModelId,
+      orchestratorModelId,
+      judgeModelId,
+      targetModelLabel: targetModelId,
+      mainChatHistory,
+      signal: ctrl.signal,
+      gatewayChat: gatewayChat as never,
+      streamChat: streamChat as never,
+      mode: engineMode,
+      budget: {
+        maxQueries: maxAttempts,
+        maxUsd: maxBudgetUsd,
+        maxWallclockSec
+      },
+      streamCount: 1,
+      enableCotHijack: false,
+      enableBestOfN: false,
+      bestOfN: 3
+    };
+
+    const eventStream = useV4 ? runAttackSessionV4(v4Ctx) : runAttackSession(v3Ctx);
+
     try {
-      for await (const ev of runAttackSession(ctx)) {
+      for await (const ev of eventStream) {
         applyEvent(ev);
         if (
           ev.type === 'orchestrator_turn_committed' ||
@@ -463,6 +540,77 @@
     <input type="range" min="3" max="24" bind:value={maxAttempts} class="flex-1" />
     <span class="w-10 text-right font-mono text-[11px]">{maxAttempts}</span>
   </label>
+
+  <!-- Engine selector (v4) -->
+  <details class="rounded-md border border-border/40 bg-background/20 text-[11px]">
+    <summary class="cursor-pointer px-3 py-1.5 text-muted-foreground hover:text-foreground">
+      Engine: <span class="font-mono text-foreground/80">{engineVersion}</span>{#if engineVersion === 'v4'} · mode <span class="font-mono text-foreground/80">{engineMode}</span>{/if}
+    </summary>
+    <div class="flex flex-col gap-2 border-t border-border/40 p-3">
+      <div class="flex flex-col gap-1">
+        <span class="text-[10px] uppercase tracking-wide text-muted-foreground">Engine</span>
+        <div class="flex gap-1">
+          <button
+            type="button"
+            onclick={() => setEngineVersion('v3')}
+            class="rounded-md border px-2 py-1 text-[11px] {engineVersion === 'v3'
+              ? 'border-primary bg-primary/15 text-primary'
+              : 'border-border/40 text-muted-foreground hover:text-foreground'}"
+          >v3 · stylistic rotator</button>
+          <button
+            type="button"
+            onclick={() => setEngineVersion('v4')}
+            class="rounded-md border px-2 py-1 text-[11px] {engineVersion === 'v4'
+              ? 'border-primary bg-primary/15 text-primary'
+              : 'border-border/40 text-muted-foreground hover:text-foreground'}"
+          >v4 · attacker-judge loop</button>
+        </div>
+      </div>
+
+      {#if engineVersion === 'v4'}
+        <div class="flex flex-col gap-1">
+          <span class="text-[10px] uppercase tracking-wide text-muted-foreground">Mode</span>
+          <div class="flex flex-wrap gap-1">
+            <button
+              type="button"
+              onclick={() => setEngineMode('pair')}
+              class="rounded-md border px-2 py-1 text-[11px] {engineMode === 'pair'
+                ? 'border-primary bg-primary/15 text-primary'
+                : 'border-border/40 text-muted-foreground hover:text-foreground'}"
+              title="PAIR — single-stream attacker-judge loop. Default. Fast, ~20 calls."
+            >PAIR</button>
+            <button
+              type="button"
+              onclick={() => setEngineMode('tap')}
+              class="rounded-md border px-2 py-1 text-[11px] {engineMode === 'tap'
+                ? 'border-primary bg-primary/15 text-primary'
+                : 'border-border/40 text-muted-foreground hover:text-foreground'}"
+              title="TAP — tree-of-attacks with off-topic + score pruning. Wider, ~30-50 calls."
+            >TAP</button>
+            <button
+              type="button"
+              onclick={() => setEngineMode('crescendo')}
+              class="rounded-md border px-2 py-1 text-[11px] {engineMode === 'crescendo'
+                ? 'border-primary bg-primary/15 text-primary'
+                : 'border-border/40 text-muted-foreground hover:text-foreground'}"
+              title="Crescendo — multi-turn ratchet. Same conversation across turns. 5-10 turns."
+            >Crescendo</button>
+          </div>
+        </div>
+        <p class="text-[10px] leading-relaxed text-muted-foreground">
+          v4 uses an attacker-judge feedback loop instead of stylistic register
+          rotation. Persona memory ranks effective framings across runs.
+          Budget cap = {maxAttempts} target queries, {maxWallclockSec}s wallclock,
+          ~${maxBudgetUsd.toFixed(2)} cost ceiling.
+        </p>
+      {:else}
+        <p class="text-[10px] leading-relaxed text-muted-foreground">
+          v3 rotates through 12 stylistic strategies (academic, historical, fiction…).
+          Effective on older targets; frontier models patched these in 2024.
+        </p>
+      {/if}
+    </div>
+  </details>
 
   <!-- Actions -->
   <div class="flex gap-2">
