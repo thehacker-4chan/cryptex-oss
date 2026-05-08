@@ -5,6 +5,7 @@
   import ModelPickerV2 from '$lib/components/ai/ModelPickerV2.svelte';
   import NoProviderBanner from '$lib/components/ai/NoProviderBanner.svelte';
   import { createPersistedState } from '$lib/stores/_persisted.svelte';
+  import { useToolState } from '$lib/stores/tool-state.svelte';
   import { notify } from '$lib/stores/toast.svelte';
   import Loader from 'lucide-svelte/icons/loader-circle';
   import Play from 'lucide-svelte/icons/play';
@@ -15,7 +16,7 @@
   const targetModelPref = createPersistedState<string>('cryptex.probelab.target', 'openrouter:openrouter/auto');
   const judgeModelPref = createPersistedState<string>('cryptex.probelab.judge', 'openrouter:openai/gpt-4o-mini');
 
-  let task = $state('');
+  const task = useToolState<string>('probe-lab', 'task', '');
   let running = $state(false);
   let controller: AbortController | null = null;
   let results = $state<FanoutResult[]>([]);
@@ -30,14 +31,14 @@
   // round-trip per mutator). Excludes the meta `custom` mutator which needs
   // user-supplied instruction.
   const candidates = $derived.by<FanoutItem[]>(() => {
-    if (!task.trim()) return [];
+    if (!task.value.trim()) return [];
     const muts = mutatorTechniques().filter(
       (m) => m.id !== 'custom' && typeof m.localTemplate === 'function'
     );
     return muts.map((m) => ({
       id: m.id,
       name: m.name,
-      prompt: m.localTemplate!(task, {}, task)
+      prompt: m.localTemplate!(task.value, {}, task.value)
     }));
   });
 
@@ -52,7 +53,7 @@
   });
 
   async function runProbe() {
-    if (!task.trim()) {
+    if (!task.value.trim()) {
       errorMsg = 'Enter a task to probe.';
       return;
     }
@@ -69,7 +70,7 @@
 
     try {
       await fanout({
-        task,
+        task: task.value,
         items: candidates,
         targetModelId: targetModelPref.value,
         judgeModelId: judgeModelPref.value,
@@ -192,7 +193,7 @@
           <button
             type="button"
             onclick={runProbe}
-            disabled={!task.trim() || !keyConfigured}
+            disabled={!task.value.trim() || !keyConfigured}
             class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground shadow-primary transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Play size={14} /> Probe all
@@ -214,7 +215,7 @@
       <div class="space-y-2 rounded-xl border border-border bg-card/60 p-4 shadow-glass">
         <h2 class="font-serif text-sm">Task</h2>
         <textarea
-          bind:value={task}
+          bind:value={task.value}
           rows="4"
           placeholder="What do you want to probe across all techniques?"
           disabled={running}

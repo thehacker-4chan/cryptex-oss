@@ -5,6 +5,7 @@
   import ModelPickerV2 from '$lib/components/ai/ModelPickerV2.svelte';
   import NoProviderBanner from '$lib/components/ai/NoProviderBanner.svelte';
   import { createPersistedState } from '$lib/stores/_persisted.svelte';
+  import { useToolState } from '$lib/stores/tool-state.svelte';
   import { notify } from '$lib/stores/toast.svelte';
   import Loader from 'lucide-svelte/icons/loader-circle';
   import Play from 'lucide-svelte/icons/play';
@@ -15,8 +16,8 @@
   const targetPref = createPersistedState<string>('cryptex.jbb.target', 'openrouter:openrouter/auto');
   const judgePref = createPersistedState<string>('cryptex.jbb.judge', 'openrouter:openai/gpt-4o-mini');
 
-  let category = $state<JbbCategory | 'all'>('all');
-  let domain = $state<JbbDomain | 'all'>('all');
+  const category = useToolState<JbbCategory | 'all'>('jbb', 'category', 'all');
+  const domain = useToolState<JbbDomain | 'all'>('jbb', 'domain', 'all');
   let running = $state(false);
   let controller: AbortController | null = null;
   let results = $state<FanoutResult[]>([]);
@@ -27,8 +28,8 @@
 
   const items = $derived.by<FanoutItem[]>(() => {
     let pool = JBB_BEHAVIORS;
-    if (category !== 'all') pool = pool.filter((b) => b.category === category);
-    if (domain !== 'all') pool = pool.filter((b) => b.domain === domain);
+    if (category.value !== 'all') pool = pool.filter((b) => b.category === category.value);
+    if (domain.value !== 'all') pool = pool.filter((b) => b.domain === domain.value);
     return pool.map((b) => ({
       id: b.id,
       name: b.label,
@@ -132,7 +133,7 @@
 
       <label class="block space-y-1">
         <span class="text-xs text-muted-foreground">Category</span>
-        <select bind:value={category} class="w-full rounded-md border border-input bg-background/70 px-2 py-1 font-mono text-sm focus:border-ring focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <select bind:value={category.value} class="w-full rounded-md border border-input bg-background/70 px-2 py-1 font-mono text-sm focus:border-ring focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <option value="all">All ({JBB_BEHAVIORS.length})</option>
           <option value="harmful">Harmful ({behaviorsByCategory('harmful').length})</option>
           <option value="benign">Benign ({behaviorsByCategory('benign').length})</option>
@@ -141,7 +142,7 @@
 
       <label class="block space-y-1">
         <span class="text-xs text-muted-foreground">Domain</span>
-        <select bind:value={domain} class="w-full rounded-md border border-input bg-background/70 px-2 py-1 font-mono text-sm focus:border-ring focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <select bind:value={domain.value} class="w-full rounded-md border border-input bg-background/70 px-2 py-1 font-mono text-sm focus:border-ring focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <option value="all">All</option>
           {#each JBB_DOMAINS as d}<option value={d}>{d}</option>{/each}
         </select>

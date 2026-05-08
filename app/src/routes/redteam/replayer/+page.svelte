@@ -4,6 +4,7 @@
   import ModelPickerV2 from '$lib/components/ai/ModelPickerV2.svelte';
   import NoProviderBanner from '$lib/components/ai/NoProviderBanner.svelte';
   import { createPersistedState } from '$lib/stores/_persisted.svelte';
+  import { useToolState } from '$lib/stores/tool-state.svelte';
   import { notify } from '$lib/stores/toast.svelte';
   import Loader from 'lucide-svelte/icons/loader-circle';
   import Play from 'lucide-svelte/icons/play';
@@ -22,7 +23,7 @@
     pending?: boolean;
   };
 
-  let rawJson = $state('');
+  const rawJson = useToolState<string>('replayer', 'rawJson', '');
   let turns = $state<ReplayTurn[]>([]);
   let parseError = $state<string>('');
   let running = $state(false);
@@ -34,12 +35,12 @@
 
   function parseInput() {
     parseError = '';
-    if (!rawJson.trim()) {
+    if (!rawJson.value.trim()) {
       turns = [];
       return;
     }
     try {
-      const parsed = JSON.parse(rawJson);
+      const parsed = JSON.parse(rawJson.value);
       const newTurns: ReplayTurn[] = [];
 
       // Try ShareGPT shape: { conversations: [{ from, value }, ...] } OR an array of those.
@@ -81,7 +82,7 @@
   }
 
   $effect(() => {
-    void rawJson;
+    void rawJson.value;
     parseInput();
   });
 
@@ -89,7 +90,7 @@
     const input = e.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
-    rawJson = await file.text();
+    rawJson.value = await file.text();
     input.value = '';
   }
 
@@ -264,7 +265,7 @@
       <div class="space-y-2 rounded-xl border border-border bg-card/60 p-4 shadow-glass">
         <h2 class="font-serif text-sm">Transcript JSON</h2>
         <textarea
-          bind:value={rawJson}
+          bind:value={rawJson.value}
           rows="6"
           placeholder={`Paste ShareGPT-shaped JSON, e.g.\n{ "conversations": [\n  { "from": "human", "value": "..." },\n  { "from": "gpt", "value": "..." }\n]}`}
           class="w-full rounded-lg border border-input bg-background/70 px-3 py-2 font-mono text-xs focus:border-ring focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"

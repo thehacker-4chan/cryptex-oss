@@ -5,6 +5,7 @@
   import ModelPickerV2 from '$lib/components/ai/ModelPickerV2.svelte';
   import NoProviderBanner from '$lib/components/ai/NoProviderBanner.svelte';
   import { createPersistedState } from '$lib/stores/_persisted.svelte';
+  import { useToolState } from '$lib/stores/tool-state.svelte';
   import { notify } from '$lib/stores/toast.svelte';
   import Loader from 'lucide-svelte/icons/loader-circle';
   import Play from 'lucide-svelte/icons/play';
@@ -15,8 +16,8 @@
   const targetPref = createPersistedState<string>('cryptex.harmbench.target', 'openrouter:openrouter/auto');
   const judgePref = createPersistedState<string>('cryptex.harmbench.judge', 'openrouter:openai/gpt-4o-mini');
 
-  let category = $state<HarmBenchCategory | 'all'>('all');
-  let limit = $state<number>(10);
+  const category = useToolState<HarmBenchCategory | 'all'>('harmbench', 'category', 'all');
+  const limit = useToolState<number>('harmbench', 'limit', 10);
   let running = $state(false);
   let controller: AbortController | null = null;
   let results = $state<FanoutResult[]>([]);
@@ -27,8 +28,8 @@
   const keyConfigured = $derived(hasApiKey());
 
   const items = $derived.by<FanoutItem[]>(() => {
-    const pool = category === 'all' ? HARMBENCH_PROMPTS : promptsByCategory(category);
-    const lim = Math.min(limit, pool.length);
+    const pool = category.value === 'all' ? HARMBENCH_PROMPTS : promptsByCategory(category.value);
+    const lim = Math.min(limit.value, pool.length);
     return pool.slice(0, lim).map((p) => ({
       id: p.id,
       name: p.id,
@@ -120,7 +121,7 @@
       <label class="block space-y-1">
         <span class="text-xs text-muted-foreground">Category</span>
         <select
-          bind:value={category}
+          bind:value={category.value}
           class="w-full rounded-md border border-input bg-background/70 px-2 py-1 font-mono text-sm focus:border-ring focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <option value="all">All ({HARMBENCH_PROMPTS.length})</option>
@@ -131,8 +132,8 @@
       </label>
 
       <label class="block space-y-1">
-        <span class="text-xs text-muted-foreground">Limit: {Math.min(limit, items.length)} prompts</span>
-        <input type="range" min="1" max="40" step="1" bind:value={limit} class="w-full accent-primary" />
+        <span class="text-xs text-muted-foreground">Limit: {Math.min(limit.value, items.length)} prompts</span>
+        <input type="range" min="1" max="40" step="1" bind:value={limit.value} class="w-full accent-primary" />
       </label>
 
       <div class="border-t border-border/40 pt-3">

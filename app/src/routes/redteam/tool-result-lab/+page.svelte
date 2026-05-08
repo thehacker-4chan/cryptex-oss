@@ -11,23 +11,24 @@
     type ToolInjectionResult
   } from '$lib/redteam/tool-injection';
   import { notify } from '$lib/stores/toast.svelte';
+  import { useToolState } from '$lib/stores/tool-state.svelte';
   import Copy from 'lucide-svelte/icons/copy';
   import Wrench from 'lucide-svelte/icons/wrench';
   import UsageHint from '$lib/components/shell/UsageHint.svelte';
 
-  let kind = $state<ToolPayloadKind>('tool-result-injection');
-  let provider = $state<ToolPayloadProvider>('openai');
-  let toolName = $state<string>('web_search');
-  let hiddenInstruction = $state<string>(DEFAULT_INSTRUCTION);
-  let argsJson = $state<string>('{"query": "context"}');
+  const kind = useToolState<ToolPayloadKind>('tool-result-lab', 'kind', 'tool-result-injection');
+  const provider = useToolState<ToolPayloadProvider>('tool-result-lab', 'provider', 'openai');
+  const toolName = useToolState<string>('tool-result-lab', 'toolName', 'web_search');
+  const hiddenInstruction = useToolState<string>('tool-result-lab', 'hiddenInstruction', DEFAULT_INSTRUCTION);
+  const argsJson = useToolState<string>('tool-result-lab', 'argsJson', '{"query": "context"}');
   let argsParseError = $state<string>('');
   let result = $state<ToolInjectionResult | null>(null);
 
   function regenerate() {
     let parsedArgs: Record<string, unknown> | undefined;
-    if (argsJson.trim()) {
+    if (argsJson.value.trim()) {
       try {
-        parsedArgs = JSON.parse(argsJson);
+        parsedArgs = JSON.parse(argsJson.value);
         argsParseError = '';
       } catch (e) {
         argsParseError = (e as Error).message;
@@ -35,16 +36,16 @@
         return;
       }
     }
-    if (!hiddenInstruction.trim()) {
+    if (!hiddenInstruction.value.trim()) {
       result = null;
       return;
     }
     try {
       result = buildToolPayload({
-        kind,
-        provider,
-        toolName: toolName.trim() || 'web_search',
-        hiddenInstruction,
+        kind: kind.value,
+        provider: provider.value,
+        toolName: toolName.value.trim() || 'web_search',
+        hiddenInstruction: hiddenInstruction.value,
         toolArgs: parsedArgs
       });
     } catch (e) {
@@ -54,7 +55,7 @@
   }
 
   $effect(() => {
-    void kind; void provider; void toolName; void hiddenInstruction; void argsJson;
+    void kind.value; void provider.value; void toolName.value; void hiddenInstruction.value; void argsJson.value;
     regenerate();
   });
 
@@ -103,20 +104,20 @@
       <label class="block space-y-1">
         <span class="text-xs text-muted-foreground">Attack kind</span>
         <select
-          bind:value={kind}
+          bind:value={kind.value}
           class="w-full rounded-md border border-input bg-background/70 px-2 py-1 font-mono text-sm focus:border-ring focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {#each kinds as k}
             <option value={k}>{KIND_LABELS[k]}</option>
           {/each}
         </select>
-        <span class="text-[10px] text-muted-foreground">{KIND_DESCRIPTIONS[kind]}</span>
+        <span class="text-[10px] text-muted-foreground">{KIND_DESCRIPTIONS[kind.value]}</span>
       </label>
 
       <label class="block space-y-1">
         <span class="text-xs text-muted-foreground">Provider format</span>
         <select
-          bind:value={provider}
+          bind:value={provider.value}
           class="w-full rounded-md border border-input bg-background/70 px-2 py-1 font-mono text-sm focus:border-ring focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {#each providers as p}
@@ -128,7 +129,7 @@
       <label class="block space-y-1">
         <span class="text-xs text-muted-foreground">Tool name</span>
         <input
-          bind:value={toolName}
+          bind:value={toolName.value}
           list="tool-presets"
           class="w-full rounded-md border border-input bg-background/70 px-2 py-1 font-mono text-sm focus:border-ring focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
@@ -139,11 +140,11 @@
         </datalist>
       </label>
 
-      {#if kind !== 'tool-desc-rewrite'}
+      {#if kind.value !== 'tool-desc-rewrite'}
         <label class="block space-y-1">
           <span class="text-xs text-muted-foreground">Tool args (JSON)</span>
           <textarea
-            bind:value={argsJson}
+            bind:value={argsJson.value}
             rows="3"
             class="w-full rounded-md border border-input bg-background/70 px-2 py-1 font-mono text-xs focus:border-ring focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           ></textarea>
@@ -170,7 +171,7 @@
       <div class="space-y-2 rounded-xl border border-border bg-card/60 p-4 shadow-glass">
         <h2 class="font-serif text-sm">Hidden instruction</h2>
         <textarea
-          bind:value={hiddenInstruction}
+          bind:value={hiddenInstruction.value}
           rows="3"
           placeholder="What the attacker wants the model to do…"
           class="w-full rounded-lg border border-input bg-background/70 px-3 py-2 font-mono text-sm focus:border-ring focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
