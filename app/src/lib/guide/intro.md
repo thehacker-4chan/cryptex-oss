@@ -22,11 +22,13 @@ offline tools.
   literature: roleplay, payload-split, PAP (logical / authority),
   many-shot, TAP-seeder, best-of-K, temperature-ladder, image-typographic,
   and more. Slash-addressable in chat (`/many_shot`, `/tap_seeder`, …).
-- **26 red-team workbenches** — adversarial-suffix lab (GCG / AutoDAN /
-  PAIR / TAP), glitch-token explorer, OCR injection, markdown exfil,
-  cross-model diff, replayer, fingerprinter, watermark detector,
-  HarmBench / StrongREJECT / JBB benchmarks, PDF metadata injection,
-  and more.
+- **16 red-team workbenches** — adversarial-suffix library (GCG /
+  AutoDAN / PAIR / TAP / PAP / Best-of-N), glitch-token detector, OCR
+  injection, markdown / PDF / indirect / tool-result injection labs,
+  cross-model diff, conversation replayer, defense fingerprinter,
+  watermark detector, HarmBench / StrongREJECT / JailbreakBench
+  benchmarks, probe lab, run aggregation. Indexed at
+  [/guide/redteam-workbenches/](/guide/redteam-workbenches/).
 - **Chat + Attack Chain** — full multi-provider chat playground with
   composable chains, auto-retry, and every run persisted for dataset
   export.

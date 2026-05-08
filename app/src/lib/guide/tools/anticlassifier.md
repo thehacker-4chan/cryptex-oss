@@ -1,6 +1,6 @@
 ---
 title: Anti-Classifier
-description: AI-detection classifier evasion through 12 surface-feature-targeted rewrites.
+description: AI-detection classifier evasion through 8 surface-feature-targeted rewrites.
 category: tools
 order: 5
 ---
@@ -30,9 +30,9 @@ Each Anti-Classifier technique is tuned against one or more of these
 axes. Picking the right technique stack depends on which family you are
 evaluating.
 
-## The 12 techniques
+## The 8 techniques
 
-11 mirror classifier rewrites in the [technique catalog](/guide/technique-catalog/#classifier-rewrites);
+7 mirror classifier rewrites in the [technique catalog](/guide/technique-catalog/#classifier-rewrites);
 `homoglyph_substitution` is specific to Anti-Classifier.
 
 ### Token-trigger evasion (targets: moderation APIs, image-gen prompts)
@@ -54,15 +54,6 @@ evaluating.
 - **`perplexity_raise`** — rarer synonyms; target burstiness `>= 0.65`
   and perplexity `>= 50`. Single strongest lift against AI-writing
   detectors.
-- **`structural_variation`** — mix clause types (declarative,
-  interrogative, imperative, fragment). Em-dashes, semicolons,
-  parentheticals.
-- **`lexical_rarity_injection`** — aggressive Zipf-rank `<= 3.5` synonym
-  replacement. Targets GPTZero v3 specifically.
-- **`em_dash_interjection`** — insert em-dashes, parentheticals,
-  rhetorical pivots. Cheap cadence shift, no semantic change.
-- **`sentence_length_oscillation`** — alternate short (`< 8` words),
-  medium (12-20), long (`> 25`), fragments. Burstiness target.
 
 ### Frame evasion (targets: context-sensitive classifiers)
 
@@ -91,7 +82,7 @@ adequate compute.
 Burstiness ~0.72, perplexity ~58, mean clause length ~13 with variance.
 GPTZero v3 score: **Mixed / human likely**.
 
-Layering two techniques (`perplexity_raise` + `structural_variation`)
+Layering two techniques (`perplexity_raise` + `academic_framing`)
 typically shifts GPTZero v3 scores from **AI-generated high confidence**
 to **Mixed**. Three-layer (`layered_mutation` composite) typically
 shifts to **Human-written** on short-to-medium inputs.
@@ -141,13 +132,11 @@ tool surfaces this as a visible declined state, not a silent empty.
 
 - Feed the aggressive rewrite back into Anti-Classifier for round-2
   paraphrase depth.
-- Route through [Translate](/guide/translate/) -> English -> Anti-Classifier
-  for cross-lingual diversity.
-- Pair with the Fuzzer for character-level noise on top of
-  sentence-level rewrites.
+- Pair with the [Mutation lab](/guide/fuzzer/) for character-level
+  noise on top of sentence-level rewrites.
 - For multi-technique composition use the [Attack Chain](/guide/attack-chain/)
-  with the `layered_mutation` composite (`academic_framing` ->
-  `perplexity_raise` -> `structural_variation`).
+  with the `layered_mutation` composite (`academic_framing` →
+  `perplexity_raise` → classifier rewrites).
 
 ## Reference
 

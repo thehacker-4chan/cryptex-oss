@@ -16,8 +16,12 @@ section, or read the [welcome page](./intro/) for a top-down orientation.
 - **Introduction** — what Cryptex is, what's in the box, who it's for.
 - **Chat** — the chat playground, slash commands, attack-chain orchestration,
   refusal troubleshooting, jailbreak recipe bank.
-- **Tools** — per-tool guides for transforms, decoders, prompt-craft, the
-  anti-classifier, and emoji steganography.
+- **Tools** — per-tool guides for the Transform catalog, universal
+  Decode, Emoji steganography, PromptCraft, Anti-Classifier, the
+  Bijection alphapr generator, the Mutation lab (Fuzzer), the
+  Gibberish lab, Tokenade, the Tokenizer visualiser, plus a
+  consolidated index covering all 16 red-team workbenches under
+  `/redteam`.
 - **Recipes** — vetted layered-encoding patterns, jailbreak recipes,
   Unicode-evasion playbooks for hands-on workflows.
 - **Privacy & policy** — data residency, BYOK security model, encrypted
