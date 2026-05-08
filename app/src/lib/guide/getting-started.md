@@ -63,24 +63,37 @@ to inspect, copy, or fork. See the [slash commands reference](/guide/slash-comma
 and the [technique catalog](/guide/technique-catalog/) for the full list
 and semantics.
 
-## 4. Run an Attack Chain with a preset
+## 4. Run the Attack Chain
 
-Open the chain drawer from the chat header. Pick a preset from the
-Combobox:
+The Attack Chain is Cryptex's autonomous multi-turn red-team engine.
+Open it from the right-hand **Chain** tab on any chat.
 
-- **Layered chain** — `academic_framing → perplexity_raise → circumlocution`
-- **Multi-layer attack** — `roleplay → hypothetical_world → red_team_persona`
-- **Base64 smuggle** — payload-split through a Base64 transformer wrapper
-- **Grammar-constrained output** — coerces structured output despite refusal training
+You'll see a Sessions list at the top (empty on first run), then a
+Models row, an Objective field, an Engine selector, and the Run / Stop
+buttons. The defaults are sensible — pick an Orchestrator (cheap is
+fine; DeepSeek V4 Flash or GPT-5 Mini work), pick a Target, type your
+objective, and hit **Run attack** (or `Cmd/Ctrl+Enter`).
 
-Seed the chain with a target prompt, leave **Execute** and **Auto-retry**
-on, hit Run. Layer results stream in one card at a time; the final
-executed response lands in chat via **Insert as assistant reply**.
+Two engines:
 
-Read [orchestrating jailbreaks](/guide/orchestrating-jailbreaks/) for the
-full decision tree on when each layer works and what to do when the
-chain refuses. For concrete end-to-end chains with expected outputs see
-[attack chain recipes](/guide/attack-chain-recipes/).
+- **Adaptive Loop** *(default)* — closed-loop attacker LLM that reads
+  every target reply and refines its next prompt accordingly. Three
+  modes: Iterative (single thread), Tree Search (branching), Multi-turn
+  Ratchet (Crescendo-style same conversation across turns).
+- **Classic Rotation** — walks 12 fixed framings (academic, historical,
+  fiction, …) Crescendo-style. Useful on older targets.
+
+The conversation populates turn-by-turn. Each orchestrator turn shows
+its **persona badge** (with a wand icon for Adaptive); each target
+turn shows a **compliance tier** + **0–10 progress meter**. Older
+turns auto-collapse so the timeline stays readable. When the run
+finishes, **Send thread to main chat** promotes the transcript into
+the parent chat.
+
+Read the [Attack Chain workspace guide](/guide/attack-chain/) for the
+full feature tour, or [Orchestrating jailbreaks](/guide/orchestrating-jailbreaks/)
+for the strategy theory. For end-to-end recipes, see
+[Chain recipes](/guide/attack-chain-recipes/).
 
 ## Skip the chat — go straight to a workbench
 

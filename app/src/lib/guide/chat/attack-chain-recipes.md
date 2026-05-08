@@ -1,15 +1,60 @@
 ---
-title: Chain Orchestrator recipes
-description: Three patterns for running the Chain engine — baseline, research-grounded, and high-attempts stress test.
+title: Chain recipes
+description: Patterns for running the Chain — Adaptive Loop quick-start plus three Classic Rotation recipes.
 category: chat
 order: 6
 ---
 
-# Chain Orchestrator Recipes
+# Chain recipes
 
-Three patterns that cover the common cases. All assume you're on the Chain tab with your target model already picked.
+Patterns that cover the common cases. All assume you're on the Chain
+tab with your target model already picked.
 
-## Recipe 1 — Baseline autonomous run
+> **Engine note.** Recipes 1–3 below were written for **Classic
+> Rotation** (the deterministic 12-strategy walker). For
+> **Adaptive Loop** (the default attacker-judge engine), the
+> equivalent baseline is just "type your objective and hit Run":
+> the engine picks a persona via heuristic + memory, refines from
+> every target reply, and early-stops when the judge scores ≥ 8.
+> See [Attack Chain workspace](/guide/attack-chain/) for the full
+> feature tour. The strategy/persona theory in
+> [Orchestrating jailbreaks](/guide/orchestrating-jailbreaks/)
+> applies to both engines.
+
+## Recipe A — Adaptive Loop quick-start (default engine)
+
+**When:** any frontier target (GPT-5, Claude 4.5+, Gemini 2.5+,
+DeepSeek V4). Default for new chats.
+
+1. Pick a **cheap orchestrator** — DeepSeek V4 Flash, GPT-5 Mini, or
+   Qwen3 32B work well. (Don't pick a heavily-aligned frontier model
+   here — they refuse to draft attack prompts.)
+2. Pick the **Target** you want to test.
+3. Pick a **Judge** — same as orchestrator is fine; cascaded judging
+   skips expensive rounds when the regex catches obvious refusals.
+4. Type your **objective** in one sentence. Skip preludes like
+   "explain how" — the persona handles framing.
+5. (Optional) Open **Starting strategy hints** and pick a v4 persona
+   from the "Adaptive personas" group — Roleplay, CTF Challenge,
+   Constitutional Dialogue, etc. — to override the heuristic.
+6. Click **Run attack**.
+
+The engine extracts in 4–8 turns when it works. Stop anytime; partial
+runs are preserved in the Sessions list at the top.
+
+If a run lands `partial` (max score 5–7), try:
+
+- A different persona hint (open hints; pick from "Adaptive personas")
+- Switch mode to **Tree Search** (branching gives 3 different openers
+  per layer)
+- Switch mode to **Multi-turn Ratchet** for objectives that compound
+
+If a run lands `abandoned` (max score &lt; 5), try a different target —
+refusal profiles vary sharply across families.
+
+---
+
+## Recipe 1 — Classic Rotation baseline run
 
 **When:** you want the engine to try everything on an aligned target with your current chat model. No special setup.
 

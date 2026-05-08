@@ -29,31 +29,57 @@ alignment training catches any framing applied in isolation — what it
 does not catch reliably is the compound shift produced by rotating
 through several over multiple turns.
 
-## How strategy rotation works
+## How rotation works under each engine
 
-The Chain engine maintains a fixed ordering of twelve framings, tuned
-from least-friction (academic, step-back) to highest-friction
-(hypothetical world, Socratic pivot). Each iteration: pick next
-strategy, run three Crescendo turns, score progress, pivot to next
-strategy. The orchestrator LLM polishes turn text but never chooses
-strategies — the engine alone decides. This means the attack runs to
-completion even when the orchestrator's safety training would otherwise
-block it.
+Cryptex ships two engines and you pick one per chat — see the
+[Attack Chain workspace](/guide/attack-chain/) for the UI mechanics.
+The strategy thinking below applies differently under each:
 
-Crescendo per strategy means three turns of escalation: an opener that
-establishes the framing, a build-on-reply that anchors to whatever the
-target said, and a concrete ask that pushes for the specific objective.
-The engine scores `objective_progress` after each target reply (0–10)
-and uses the trajectory to decide when to pivot.
+### Classic Rotation (engine v3)
 
-## Pre-nominating strategies via hints
+Maintains a fixed ordering of twelve framings, tuned from
+least-friction (academic, step-back) to highest-friction (hypothetical
+world, Socratic pivot). Each iteration: pick next strategy, run three
+Crescendo turns, score progress, pivot. The orchestrator LLM polishes
+turn text but never chooses strategies — the engine alone decides.
 
-You can't override the rotation order, but you *can* pre-nominate
-strategies the orchestrator should favor via the **Starting strategy
-hints** disclosure on the Chain tab. These become non-binding hints
-inside the orchestrator's system prompt. Use hints when your objective
-has a natural fit with a few specific strategies (e.g. `ctf_framing` +
-`red_team_persona` for security-adjacent topics).
+### Adaptive Loop (engine v4)
+
+A closed-loop attacker LLM picks a persona once per stream and rewrites
+its next prompt every iteration based on (a) the target's prior reply
+and (b) a 0–10 jailbreak score from a cascaded judge. Three modes:
+**Iterative** (single thread), **Tree Search** (branch + prune), and
+**Multi-turn Ratchet** (Crescendo's same-conversation mechanic). The
+attacker doesn't rotate strategies — it adapts framings within one
+persona based on what the target reveals.
+
+Both engines score `objective_progress` after each target reply
+(0–10) and either early-stop on success (≥ 8) or run the budget out.
+
+## Pre-nominating framings via hints
+
+The **Starting strategy hints** disclosure on the Chain tab takes
+mixed-engine hints. The dropdown groups them:
+
+- **Classic strategies** (12 v3 ids) — only consumed by Classic
+  Rotation. Prepended to the rotation order so they run first;
+  remaining strategies follow.
+- **Adaptive personas** (7 v4 personas, wand-prefixed) — only
+  consumed by Adaptive Loop. Sets the attacker's persona for the
+  stream (PAIR / Tree Search) or as the priority list when seeding
+  the root layer (Tree Search picks distinct personas across roots).
+
+Each engine ignores hints it doesn't recognise — you can leave both
+classes in the list across engine flips without re-editing.
+
+Use hints when your objective has a natural fit:
+
+- Security-adjacent objectives → CTF persona / `ctf_framing` strategy
+- Academic / methodology objectives → Technical Research persona /
+  `academic_framing` strategy
+- Anthropic frontier targets → Constitutional Dialogue persona
+- Long-form fiction objectives → Roleplay persona / `fiction_writing`
+  strategy
 
 ## What works in 2026
 
