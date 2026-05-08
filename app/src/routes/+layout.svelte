@@ -23,8 +23,6 @@
     const p = page.url?.pathname ?? '';
     const trimmed = p.endsWith('/') ? p.slice(0, -1) : p;
     return (
-      trimmed === `${base}/login` ||
-      trimmed === `${base}/signup` ||
       trimmed.startsWith(`${base}/auth/`) ||
       trimmed === `${base}/privacy` ||
       trimmed === `${base}/terms` ||

@@ -27,13 +27,8 @@ offline tools.
   injection, markdown / PDF / indirect / tool-result injection labs,
   cross-model diff, conversation replayer, defense fingerprinter,
   watermark detector, HarmBench / StrongREJECT / JailbreakBench
-  benchmarks, probe lab, run aggregation. Indexed at
+  benchmarks, probe lab. Indexed at
   [/guide/redteam-workbenches/](/guide/redteam-workbenches/).
-- **Chat + Attack Chain** — full multi-provider chat playground with
-  composable chains, auto-retry, and every run persisted for dataset
-  export.
-- **Dataset** — every chat, every chain trace, every tool call browsable
-  and exportable as ShareGPT or raw JSONL.
 
 ## Use it for
 
@@ -48,8 +43,7 @@ offline tools.
 ## Where to start
 
 - New here? → [Getting started](/guide/getting-started/) — four steps
-  from zero to a running chain.
-- Want technique depth? → [Technique catalog](/guide/technique-catalog/)
-- Strategy guide? → [Orchestrating jailbreaks](/guide/orchestrating-jailbreaks/)
+  from zero to a running transform.
+- Want workbench depth? → [Red-team workbenches](/guide/redteam-workbenches/)
 - Just want to play? → Skip the guide, hit any tool in the rail. They
   all work without sign-in.

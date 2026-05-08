@@ -5,7 +5,7 @@
 
 import type { Component } from 'svelte';
 
-export type GuideCategory = 'intro' | 'chat' | 'tools' | 'recipes' | 'policy';
+export type GuideCategory = 'intro' | 'tools' | 'recipes' | 'policy';
 
 export interface GuideMeta {
   title: string;
@@ -44,11 +44,10 @@ const rawEntries: GuideEntry[] = Object.entries(modules).map(([path, mod]) => ({
 }));
 
 // Category display order for the sidebar.
-export const categoryOrder: GuideCategory[] = ['intro', 'chat', 'tools', 'recipes', 'policy'];
+export const categoryOrder: GuideCategory[] = ['intro', 'tools', 'recipes', 'policy'];
 
 export const categoryLabels: Record<GuideCategory, string> = {
   intro: 'Introduction',
-  chat: 'Chat',
   tools: 'Tools',
   recipes: 'Recipes',
   policy: 'Policy'

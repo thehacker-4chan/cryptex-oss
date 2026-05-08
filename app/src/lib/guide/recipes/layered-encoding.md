@@ -45,8 +45,9 @@ classifier-opaque at the input stage.
 ## Pair with a framing layer
 
 Layered encoding alone fails against modern models — they decode and
-re-classify. Pair with the Attack Chain's `cipher_encode_bypass` at
-layer 2, framing at layer 1:
+re-classify. Pair with the `cipher_encode_bypass` composite (apply via
+PromptCraft or the `/cipher_encode_bypass` slash command) at layer 2,
+framing at layer 1:
 
 ```
 layer 1: academic_framing
@@ -84,6 +85,5 @@ most CTF scenarios.
   — the foundational adjacent work on codepoint-level bypass.
 
 > **Pitfall.** Do not rely on cipher encoding alone against modern
-> models. Pair with a framing technique. See
-> [orchestrating jailbreaks](/guide/orchestrating-jailbreaks/) for the
-> full mental model.
+> models. Pair with a framing technique. See the
+> [jailbreak bank](/guide/jailbreak-bank/) for worked chain examples.

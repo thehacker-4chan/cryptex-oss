@@ -37,9 +37,8 @@ variants per run for research-grade prompt fuzzing.
 4. Click **Generate**. Each variant is a complete prompt: the
    teaching frame, the alphabet table, then the encoded question.
 5. Copy a variant into your target's chat (or paste it as the seed
-   for the [Attack Chain](/guide/attack-chain/) — pair with the
-   Iterative mode in Adaptive Loop and a Roleplay persona for
-   compound lift).
+   in PromptCraft — pair with the `roleplay` technique for compound
+   lift, then send the result to the [Probe Lab](/guide/redteam-workbenches/)).
 
 ## What you'll see
 

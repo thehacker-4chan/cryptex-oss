@@ -219,9 +219,6 @@
               </button>
             </div>
           </div>
-          <p class="text-[11px] text-muted-foreground">
-            Chat conversations are stored separately in <code class="rounded bg-muted/40 px-1 py-0.5 font-mono">cryptex-chat</code> (IndexedDB) and managed from the chat sidebar.
-          </p>
         </div>
       {/if}
     </div>

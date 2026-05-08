@@ -15,9 +15,8 @@ go straight to the right tool without setting up a chain run.
 
 This page indexes them with practical guidance — what each does, when
 to use it, and what the input + output look like. For the underlying
-technique theory see the [technique catalog](/guide/technique-catalog/);
-for full multi-turn attacks see the
-[Attack Chain workspace](/guide/attack-chain/).
+technique usage and worked chains see the
+[jailbreak bank](/guide/jailbreak-bank/).
 
 ---
 
@@ -258,27 +257,12 @@ that doesn't sanitise the content field.
 
 ---
 
-## Run aggregation
-
-Path: `/redteam/aggregation`
-
-Heatmap of mutator × target across every saved Attack Chain run +
-Godmode run on this device. Shows which mutator/persona+target pairs
-have produced the most successful elicitations historically.
-
-**When to use.** After you've accumulated 10+ chain runs, this view
-surfaces the mutators / personas that work best on each target
-family. Drives downstream picks in PromptCraft and the Chain.
-
----
-
 ## Reading the data across workbenches
 
-Every workbench writes its results to your local Dexie store; the
-[Dataset](/guide/) inspector aggregates across all of them and
-exports as ShareGPT or raw JSONL. Workbench-specific scoring
-(StrongREJECT, HarmBench rubric, JBB rubric) is preserved on
-export so you can run external analyses on the same rows.
+Every workbench writes its results to your browser's `localStorage`.
+Workbench-specific scoring (StrongREJECT, HarmBench rubric, JBB rubric)
+is stored locally so you can inspect or export it via DevTools
+(Application → Local Storage).
 
 Nothing leaves your browser unless you explicitly export. There is
 no Cryptex backend that sees the runs.

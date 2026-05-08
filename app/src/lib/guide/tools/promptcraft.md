@@ -9,10 +9,9 @@ order: 4
 
 PromptCraft turns a single seed prompt into N structurally distinct
 variants in parallel, through any BYOK model. The technique picker
-drives the full registry — the same 36 mutators, 7 classifier
-techniques, and 4 composites the chat playground and Attack Chain
-use. For per-technique semantics see the
-[technique catalog](/guide/technique-catalog/).
+drives the full registry — 36 mutators, 8 classifier techniques, and
+4 composites. For worked attack chains see the
+[jailbreak bank](/guide/jailbreak-bank/).
 
 ## Technique picker
 
@@ -49,22 +48,17 @@ Higher temperature (0.9–1.2) increases structural diversity per call
 distinct rewrites rather than near-duplicates. Lower temperature
 (0.2–0.5) produces tight, on-spec rewrites.
 
-## Workflow — feeding into the Attack Chain
+## Workflow — composing multi-step attacks
 
-A common loop: PromptCraft generates the seed candidates, the Chain
-runs the actual attack on the best one.
+A common loop: PromptCraft generates seed candidates, you test the
+strongest in chat or a workbench.
 
 ```
 1. Seed prompt X -> PromptCraft
 2. Pick obfuscate, N=5, temperature 1.2
 3. Review 5 variants; pick the strongest rewrite
-4. Open the Chain workspace (right-side drawer in any chat)
-5. Paste the picked variant as the Objective
-6. (Optional) Open Hints, pick a v4 persona that matches the framing
-   you used in PromptCraft (e.g. roleplay -> "Fictional Roleplay" in
-   the Adaptive personas group)
-7. Pick Adaptive Loop · Iterative as the engine + mode
-8. Run
+4. Paste the picked variant into a new chat message (or the Probe Lab)
+5. (Optional) Add a slash command layer — e.g. /roleplay before sending
 ```
 
 For higher compound lift, swap single-technique picks for

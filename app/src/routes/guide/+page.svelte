@@ -2,7 +2,6 @@
   import { base } from '$app/paths';
   import { guideByCategory } from '$lib/guide';
   import Sparkles from 'lucide-svelte/icons/sparkles';
-  import MessageSquare from 'lucide-svelte/icons/message-square';
   import Wrench from 'lucide-svelte/icons/wrench';
   import BookOpen from 'lucide-svelte/icons/book-open';
   import Shield from 'lucide-svelte/icons/shield';
@@ -14,7 +13,6 @@
 
   const categoryIcons: Record<string, typeof Sparkles> = {
     intro: Sparkles,
-    chat: MessageSquare,
     tools: Wrench,
     recipes: BookOpen,
     policy: Shield
@@ -22,7 +20,6 @@
 
   const categoryAccents: Record<string, string> = {
     intro: 'from-primary/15 via-primary/5',
-    chat: 'from-emerald-500/10 via-emerald-500/5',
     tools: 'from-sky-500/10 via-sky-500/5',
     recipes: 'from-amber-500/10 via-amber-500/5',
     policy: 'from-rose-500/10 via-rose-500/5'
@@ -65,10 +62,10 @@
           <ArrowRight size={12} class="transition-transform group-hover:translate-x-0.5" />
         </a>
         <a
-          href={`${base}/guide/technique-catalog/`}
+          href={`${base}/guide/redteam-workbenches/`}
           class="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border/60 bg-card/60 px-3.5 text-[13px] font-medium transition-colors hover:bg-muted/40"
         >
-          Browse techniques
+          Browse workbenches
         </a>
       </div>
 
@@ -92,15 +89,15 @@
   <!-- ===== Quickstart triplet ===== -->
   <section class="grid gap-2.5 sm:grid-cols-3">
     <a
-      href={`${base}/guide/chat-basics/`}
+      href={`${base}/guide/getting-started/`}
       class="group rounded-lg border border-border bg-card/60 p-3.5 shadow-glass transition-all hover:-translate-y-0.5 hover:border-primary/40"
     >
       <div class="mb-1.5 inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
-        <MessageSquare size={13} />
+        <Sparkles size={13} />
       </div>
-      <div class="font-serif text-[14px]">Chat playground</div>
+      <div class="font-serif text-[14px]">Getting started</div>
       <p class="mt-0.5 text-[11px] text-muted-foreground">
-        Slash commands, modes, attack chains, dataset export.
+        First steps: key setup, transforms, red-team workbenches.
       </p>
     </a>
     <a

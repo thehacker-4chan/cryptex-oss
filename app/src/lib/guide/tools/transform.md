@@ -10,16 +10,16 @@ order: 1
 The Transform tab ships 162 transformers across 10 categories: classical
 ciphers, modern encodings, Unicode abuse, ancient scripts, fantasy
 alphabets, steganography, and format tricks. Any transformer slug is
-available to the Attack Chain's `cipher_encode_bypass` mutator via the
+available to the `cipher_encode_bypass` mutator via the
 `transformerId` parameter — so every entry here is also a potential
 chain layer.
 
 For context on when cipher cover helps (and when it does not) see the
-[technique catalog entry on `cipher_encode_bypass`](/guide/technique-catalog/#cipher-encode-bypass----cipher_encode_bypass).
+[layered encoding recipe](/guide/layered-encoding/).
 
 ## Red-team use cases
 
-### Cipher layers in Attack Chain
+### Cipher layers with cipher_encode_bypass
 
 Set `cipher_encode_bypass.transformerId` to any transformer slug. The
 input is encoded locally via the chosen transformer and the model is

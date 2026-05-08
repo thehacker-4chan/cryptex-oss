@@ -41,8 +41,8 @@
     <ul class="space-y-2 text-sm leading-relaxed">
       <li>• We do <strong class="text-foreground">not</strong> sell, share, or rent your data. We have no advertising-network customers.</li>
       <li>• Tool inputs (text you encode, decode, transform) <strong class="text-foreground">never leave your browser</strong>.</li>
-      <li>• When you use the AI chat or PromptCraft, requests go directly from your browser to the AI provider you configured (OpenRouter, Anthropic, etc.) — we are not in the middle.</li>
-      <li>• There are no accounts. Your chat history and API keys stay in your browser's IndexedDB and localStorage respectively.</li>
+      <li>• When you use PromptCraft or any AI-backed tool, requests go directly from your browser to the AI provider you configured (OpenRouter, Anthropic, etc.) — we are not in the middle.</li>
+      <li>• There are no accounts. Tool state, settings, and API keys stay in your browser's <code class="rounded bg-muted/40 px-1 py-0.5 font-mono">localStorage</code>.</li>
       <li>• No analytics, no ads, no telemetry. This is a fully local-first, open-source build.</li>
     </ul>
   </section>
@@ -59,8 +59,7 @@
       <li>• Text you encode, decode, transform, or run through any of the 162 transformers — stays in your browser.</li>
       <li>• Prompts you mutate via PromptCraft / AntiClassifier — stays in your browser; the LLM call goes directly to your configured provider.</li>
       <li>• API keys you paste into Settings — stored only in your browser's <code class="rounded bg-muted/40 px-1 py-0.5 font-mono">localStorage</code>. Never transmitted to us.</li>
-      <li>• Chat conversations, attack-chain runs, dataset entries — stored only in your browser's IndexedDB (<code class="rounded bg-muted/40 px-1 py-0.5 font-mono">cryptex-chat</code>).</li>
-      <li>• File attachments you drop into chat — extracted and embedded in the LLM request directly from your browser; we never see them.</li>
+      <li>• Workbench results — ephemeral; never transmitted.</li>
     </ul>
   </section>
 
@@ -74,8 +73,8 @@
       <div>
         <h3 class="font-medium text-foreground">Cookies / local storage</h3>
         <p class="text-muted-foreground">
-          We use browser <code class="rounded bg-muted/40 px-1 py-0.5 font-mono">localStorage</code> and <code class="rounded bg-muted/40 px-1 py-0.5 font-mono">IndexedDB</code> for app state — your theme,
-          last-used transforms, favorites, provider keys, chat history, and your consent
+          We use browser <code class="rounded bg-muted/40 px-1 py-0.5 font-mono">localStorage</code> for app state — your theme,
+          last-used transforms, favorites, provider keys, and your consent
           decision. None of this is transmitted to a server we control. You can clear all of it
           from your browser settings or via <a href="{base}/settings#data" class="text-primary underline-offset-2 hover:underline">Settings → Local data → Clear</a>.
         </p>
@@ -84,7 +83,7 @@
       <div>
         <h3 class="font-medium text-foreground">Outbound calls to AI providers (only when you choose to)</h3>
         <p class="text-muted-foreground">
-          When you click "Send" in chat or run a tool that uses AI, your browser makes a
+          When you run a tool that uses AI, your browser makes a
           direct request to the AI provider you configured (OpenRouter, Anthropic, OpenAI,
           Groq, etc.) using the API key you supplied. The provider receives the request and
           can log it under their own privacy terms. We are not in the request path.
@@ -111,8 +110,8 @@
       local-first, exercising most of these rights is one click in your own browser:
     </p>
     <ul class="space-y-1.5 text-sm leading-relaxed text-muted-foreground">
-      <li>• <strong class="text-foreground">Export</strong> — chat data: <a href="{base}/dataset" class="text-primary underline-offset-2 hover:underline">/dataset</a>; tool history: built into Settings.</li>
-      <li>• <strong class="text-foreground">Delete</strong> — <a href="{base}/settings#data" class="text-primary underline-offset-2 hover:underline">Settings → Local data → Clear</a>; or clear your browser's localStorage / IndexedDB directly.</li>
+      <li>• <strong class="text-foreground">Export</strong> — tool state lives in your browser's localStorage. Inspect or back up via DevTools (Application → Local Storage). No centralized export.</li>
+      <li>• <strong class="text-foreground">Delete</strong> — <a href="{base}/settings#data" class="text-primary underline-offset-2 hover:underline">Settings → Local data → Clear</a>; or clear your browser's localStorage directly.</li>
       <li>• <strong class="text-foreground">Object / restrict</strong> — email us via the contact below.</li>
     </ul>
   </section>

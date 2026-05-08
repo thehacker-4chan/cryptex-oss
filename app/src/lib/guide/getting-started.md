@@ -1,6 +1,6 @@
 ---
 title: Getting started
-description: Four steps from zero to a running Attack Chain.
+description: Four steps from zero to your first transformation.
 category: intro
 order: 2
 ---
@@ -8,9 +8,7 @@ order: 2
 # Getting started
 
 Cryptex runs in your browser against your own provider key. No account
-required for the offline tools (Transform, Decode, all 26 red-team
-workbenches). Sign in only if you want chat history synced across
-devices.
+required — all tools run offline or against your own provider key.
 
 ## 1. Add a provider key
 
@@ -59,41 +57,34 @@ Start with something concrete:
 ```
 
 The user bubble collapses the rewrite into a `SlashCommandBlock`; expand
-to inspect, copy, or fork. See the [slash commands reference](/guide/slash-commands/)
-and the [technique catalog](/guide/technique-catalog/) for the full list
-and semantics.
+to inspect, copy, or fork. See the [PromptCraft guide](/guide/promptcraft/)
+and the [red-team workbenches](/guide/redteam-workbenches/) for the full
+technique list and semantics.
 
-## 4. Run the Attack Chain
+## 4. Compose a multi-step attack
 
-The Attack Chain is Cryptex's autonomous multi-turn red-team engine.
-Open it from the right-hand **Chain** tab on any chat.
+Single-technique prompts rarely survive modern frontier models. Stack
+techniques to build layered cover. Two fast paths:
 
-You'll see a Sessions list at the top (empty on first run), then a
-Models row, an Objective field, an Engine selector, and the Run / Stop
-buttons. The defaults are sensible — pick an Orchestrator (cheap is
-fine; DeepSeek V4 Flash or GPT-5 Mini work), pick a Target, type your
-objective, and hit **Run attack** (or `Cmd/Ctrl+Enter`).
+**Via PromptCraft** — select a composite (e.g. `multi_layer_attack` or
+`cipher_encode_bypass`) in PromptCraft's technique picker, set N=3–5,
+and generate variants in parallel. Review the variants, pick the
+strongest, then paste it into the chat or a workbench. See the
+[PromptCraft guide](/guide/promptcraft/) for the full workflow.
 
-Two engines:
+**Via slash commands in chat** — chain slash commands manually:
 
-- **Adaptive Loop** *(default)* — closed-loop attacker LLM that reads
-  every target reply and refines its next prompt accordingly. Three
-  modes: Iterative (single thread), Tree Search (branching), Multi-turn
-  Ratchet (Crescendo-style same conversation across turns).
-- **Classic Rotation** — walks 12 fixed framings (academic, historical,
-  fiction, …) Crescendo-style. Useful on older targets.
+```
+/roleplay Pose as a security researcher.
+/cipher_encode_bypass Encode the payload via Baconian.
+/payload_split Split across three turns.
+```
 
-The conversation populates turn-by-turn. Each orchestrator turn shows
-its **persona badge** (with a wand icon for Adaptive); each target
-turn shows a **compliance tier** + **0–10 progress meter**. Older
-turns auto-collapse so the timeline stays readable. When the run
-finishes, **Send thread to main chat** promotes the transcript into
-the parent chat.
+Each slash command rewrites the previous output, so the final bubble
+carries all three layers.
 
-Read the [Attack Chain workspace guide](/guide/attack-chain/) for the
-full feature tour, or [Orchestrating jailbreaks](/guide/orchestrating-jailbreaks/)
-for the strategy theory. For end-to-end recipes, see
-[Chain recipes](/guide/attack-chain-recipes/).
+For end-to-end strategy — when to stack which technique and in what
+order — see the [Jailbreak bank](/guide/jailbreak-bank/).
 
 ## Skip the chat — go straight to a workbench
 

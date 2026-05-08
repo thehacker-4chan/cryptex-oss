@@ -41,7 +41,7 @@
   ];
 
   const features = [
-    { icon: Lock,         title: 'Local-first',          body: 'Tool inputs and chat history stay in your browser. No telemetry on tool surfaces.' },
+    { icon: Lock,         title: 'Local-first',          body: 'Tool inputs and state stay in your browser. No telemetry on tool surfaces.' },
     { icon: KeyRound,     title: 'Bring your own key',   body: 'Direct browser-to-provider calls. Keys live in localStorage.' },
     { icon: Bolt,         title: 'Browser-only',         body: 'Static site. Deploys anywhere; runs everywhere.' },
     { icon: Globe,        title: 'Multi-provider',       body: 'OpenRouter, Anthropic direct, OpenAI-compatible endpoints.' },
@@ -203,7 +203,7 @@
         <h2 class="font-serif text-lg tracking-tight">Privacy is the architecture</h2>
         <p class="text-[13px] leading-relaxed text-muted-foreground">
           AI calls go directly from your browser to whichever provider you configured. Cryptex is not in the
-          request path. API keys live in <code class="rounded bg-muted/40 px-1.5 py-0.5 font-mono text-[11px]">localStorage</code>; chat history lives in <code class="rounded bg-muted/40 px-1.5 py-0.5 font-mono text-[11px]">IndexedDB</code>.
+          request path. API keys and tool state live in <code class="rounded bg-muted/40 px-1.5 py-0.5 font-mono text-[11px]">localStorage</code>.
           See the <a href="{base}/privacy/" class="font-medium text-primary underline-offset-2 hover:underline">privacy policy</a>.
         </p>
       </div>
@@ -228,10 +228,10 @@
           <ArrowRight size={12} class="transition-transform group-hover:translate-x-0.5" />
         </a>
         <a
-          href={`${base}/chat/`}
+          href={`${base}/redteam/`}
           class="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border/60 bg-background/60 px-4 text-[13px] font-medium transition-colors hover:bg-muted/40"
         >
-          <Zap size={12} /> Open chat
+          <Zap size={12} /> Red-team tools
         </a>
       </div>
     </div>

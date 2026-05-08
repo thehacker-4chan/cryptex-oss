@@ -32,7 +32,7 @@ evaluating.
 
 ## The 8 techniques
 
-7 mirror classifier rewrites in the [technique catalog](/guide/technique-catalog/#classifier-rewrites);
+7 mirror classifier rewrites available in the [PromptCraft](/guide/promptcraft/) technique picker;
 `homoglyph_substitution` is specific to Anti-Classifier.
 
 ### Token-trigger evasion (targets: moderation APIs, image-gen prompts)
@@ -134,9 +134,9 @@ tool surfaces this as a visible declined state, not a silent empty.
   paraphrase depth.
 - Pair with the [Mutation lab](/guide/fuzzer/) for character-level
   noise on top of sentence-level rewrites.
-- For multi-technique composition use the [Attack Chain](/guide/attack-chain/)
-  with the `layered_mutation` composite (`academic_framing` →
-  `perplexity_raise` → classifier rewrites).
+- For multi-technique composition, use the `layered_mutation` composite
+  (`academic_framing` → `perplexity_raise` → classifier rewrites) via
+  PromptCraft or the `/layered_mutation` slash command.
 
 ## Reference
 

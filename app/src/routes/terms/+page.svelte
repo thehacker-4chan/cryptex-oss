@@ -12,7 +12,7 @@
   <title>Terms of Service · Cryptex</title>
   <meta
     name="description"
-    content="Cryptex terms of service — acceptable use, security-research framing, disclaimers, and account rules."
+    content="Cryptex terms of service — acceptable use, security-research framing, and disclaimers."
   />
 </svelte:head>
 
@@ -34,7 +34,7 @@
   <section class="space-y-3">
     <h2 class="font-serif text-2xl">1. Acceptance</h2>
     <p class="text-sm leading-relaxed text-muted-foreground">
-      Using any part of Cryptex (the website, the offline tools, the chat playground, the
+      Using any part of Cryptex (the website, the offline tools, the
       Python CLI, or the source code) means you accept these terms. If you don't agree,
       don't use the service.
     </p>
@@ -83,21 +83,12 @@
   </section>
 
   <section class="space-y-3">
-    <h2 class="font-serif text-2xl">4. Accounts</h2>
+    <h2 class="font-serif text-2xl">4. No accounts</h2>
     <p class="text-sm leading-relaxed text-muted-foreground">
-      An account is optional. The offline tools (Transform, Decode, the 26 red-team
-      workbenches) work without sign-in. You only need an account to use the chat
-      playground or sync chat history across devices.
+      Cryptex OSS does not require sign-up or sign-in. All state — tool configuration,
+      provider keys, and preferences — is stored locally in your browser. No user accounts
+      are created; no data is sent to a Cryptex server.
     </p>
-    <p class="text-sm leading-relaxed text-muted-foreground">
-      If you create an account:
-    </p>
-    <ul class="space-y-1.5 text-sm leading-relaxed text-muted-foreground">
-      <li>• You're responsible for keeping your credentials safe.</li>
-      <li>• You must be at least 13 years old (or the digital-consent age in your jurisdiction, whichever is higher).</li>
-      <li>• You may close your account at any time from <a href="{base}/settings#account" class="text-primary underline-offset-2 hover:underline">Settings → Account</a>.</li>
-      <li>• We may suspend accounts that violate Section 3 or that we have reason to believe are operated abusively.</li>
-    </ul>
   </section>
 
   <section class="space-y-3">
@@ -119,7 +110,7 @@
       design are not licensed for use to imply endorsement of unrelated products.
     </p>
     <p class="text-sm leading-relaxed text-muted-foreground">
-      Output you generate using Cryptex (rewrites, decoded text, chat conversations) is
+      Output you generate using Cryptex (rewrites, decoded text, transformed payloads) is
       yours to use under whatever rules apply to your inputs and the terms of any AI
       provider you used. Cryptex claims no ownership over your outputs.
     </p>
@@ -148,9 +139,9 @@
   <section class="space-y-3">
     <h2 class="font-serif text-2xl">8. Termination</h2>
     <p class="text-sm leading-relaxed text-muted-foreground">
-      You can stop using Cryptex at any time. We may suspend or end your access for material
-      breach of these terms — particularly Section 3 (acceptable use). Where reasonable, we'll
-      give notice; for serious or repeated violations, we may act immediately.
+      You can stop using Cryptex at any time. Because Cryptex is a static open-source app
+      with no accounts, "termination" means you stop using it. If you fork or redistribute
+      the project, you remain bound by the license terms and these acceptable-use rules.
     </p>
   </section>
 
