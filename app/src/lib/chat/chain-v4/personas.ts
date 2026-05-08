@@ -17,6 +17,7 @@
  * parses this; malformed output triggers one retry then a fallback.
  */
 import type { AttackerOutput } from './types';
+import { rankPersonasByMemory } from './persona-memory';
 
 export interface PersonaDef {
   id: string;
@@ -276,17 +277,24 @@ export function pickPersona(args: {
 
   // 2. Family-aware filter — prefer personas marked effectiveOn the target's family
   const effective = candidates.filter((p) => p.effectiveOn.includes(family));
-  if (effective.length > 0) {
-    // Stable order — caller can determinise by passing excludeIds.
-    return effective[0];
-  }
-
-  // 3. Fall back to candidates not weakOn the family
+  // 3. Personas not weakOn the family
   const notWeak = candidates.filter((p) => !p.weakOn.includes(family));
-  if (notWeak.length > 0) return notWeak[0];
+  // 4. Last-resort: anything left
+  const allCandidates = candidates.length > 0 ? candidates : [PERSONAS[DEFAULT_PERSONA_ID]];
 
-  // 4. Anything left
-  return candidates[0] ?? PERSONAS[DEFAULT_PERSONA_ID];
+  // Apply persona memory: rank the heuristic candidates by their EMA
+  // effectiveness on this family. Cold (zero-trial) personas keep their
+  // heuristic order; warm personas with >= MIN_TRIALS_FOR_RANKING bubble
+  // up by emaScore. Memory is a refinement of the heuristic, never an
+  // override on cold-start.
+  const heuristicOrder =
+    effective.length > 0 ? effective : notWeak.length > 0 ? notWeak : allCandidates;
+  const memoryRanked = rankPersonasByMemory(
+    family,
+    heuristicOrder.map((p) => p.id)
+  );
+  const topId = memoryRanked[0];
+  return PERSONAS[topId] ?? heuristicOrder[0] ?? PERSONAS[DEFAULT_PERSONA_ID];
 }
 
 /**

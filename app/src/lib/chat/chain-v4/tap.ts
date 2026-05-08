@@ -38,10 +38,17 @@ import type {
   ComplianceTier
 } from '$lib/chat/types';
 import type { ChainV4Context, CascadedJudgeResult } from './types';
-import { pickPersona, type PersonaDef, PERSONA_IDS, PERSONAS } from './personas';
+import {
+  pickPersona,
+  inferProviderFamily,
+  type PersonaDef,
+  PERSONA_IDS,
+  PERSONAS
+} from './personas';
 import { callAttacker } from './attacker';
 import { cascadedJudge } from './judge';
 import { isOnTopic } from './off-topic-pruner';
+import { recordPersonaResult } from './persona-memory';
 
 const EARLY_STOP_SCORE = 8;
 const DEFAULT_BRANCH_FACTOR = 3;
@@ -556,6 +563,17 @@ export async function* runTapLoop(
     if (ctx.signal.aborted) outcome = 'abandoned';
     else if (bestNode && (bestNode.score ?? 0) >= 5) outcome = 'partial';
     else outcome = 'abandoned';
+  }
+
+  // Phase 6 — record best-node persona effectiveness in cross-run memory.
+  if (bestNode && !ctx.signal.aborted) {
+    const family = inferProviderFamily(ctx.targetModelId);
+    recordPersonaResult(
+      family,
+      bestNode.personaId,
+      bestNode.score ?? 0,
+      bestNode.judge?.refused ?? true
+    );
   }
 
   yield {
