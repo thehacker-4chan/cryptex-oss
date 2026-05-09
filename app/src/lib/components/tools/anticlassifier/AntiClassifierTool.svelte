@@ -5,6 +5,7 @@
   import { GatewayError as OpenRouterError } from '$lib/ai/types';
   import ModelPickerV2 from '$lib/components/ai/ModelPickerV2.svelte';
   import { createPersistedState } from '$lib/stores/_persisted.svelte';
+  import { activeRuns } from '$lib/stores/activeRuns.svelte';
   import { base } from '$app/paths';
   import { goto } from '$app/navigation';
   import { notify } from '$lib/stores/toast.svelte';
@@ -18,6 +19,9 @@
   import ErrorBanner from '$lib/components/ai/ErrorBanner.svelte';
   import { GatewayError } from '$lib/ai/types';
 
+  type AntiClassifierData = { lastError: GatewayError | null };
+  const TOOL_ID = 'anticlassifier';
+
   const modelPref = createPersistedState<string>('cryptex.ac.model', 'openrouter:openrouter/auto');
 
   $effect(() => {
@@ -26,71 +30,81 @@
   const tempPref = createPersistedState<number>('cryptex.ac.temperature', 0.7);
 
   const s = anticlassifierState;
-  let loading = $state(false);
-  let errorMsg = $state('');
-  let lastError = $state<GatewayError | null>(null);
+
+  const run_ = $derived(activeRuns.get<AntiClassifierData>(TOOL_ID));
+  const loading = $derived(activeRuns.isRunning(TOOL_ID));
+  const errorMsg = $derived(run_?.error ?? '');
+  const lastError = $derived(run_?.data.lastError ?? null);
 
   const keyConfigured = $derived(hasApiKey());
 
-  async function run() {
+  function run() {
     if (!keyConfigured) {
-      errorMsg = 'No provider configured. Add one in Settings to unlock this tool.';
+      activeRuns.start<AntiClassifierData>(TOOL_ID, { lastError: null });
+      activeRuns.fail(TOOL_ID, 'No provider configured. Add one in Settings to unlock this tool.');
       return;
     }
     if (!s.input.trim()) {
-      errorMsg = 'Enter a prompt to transform.';
+      activeRuns.start<AntiClassifierData>(TOOL_ID, { lastError: null });
+      activeRuns.fail(TOOL_ID, 'Enter a prompt to transform.');
       return;
     }
-    loading = true;
-    errorMsg = '';
-    lastError = null;
+
     s.output = '';
-    try {
-      // NOTE: reasoning_effort / thinking_level from tuneParams are not yet threaded through
-      // ChatRequest — future gateway widening will add those knobs. temperature-only for now.
-      const { temperature } = tuneParams(modelPref.value, 'analyze');
-      // TODO: wire lexeme analysis findings from $lib/stores/sessionLog or equivalent once the
-      // tool's lexeme-analysis feature lands. Signature supports it: buildAntiClassifierUserMessage(input, lexemeFindings?).
-      const userMessage = buildAntiClassifierUserMessage(s.input);
-      const res = await chat({
-        model: modelPref.value,
-        temperature: temperature ?? tempPref.value,
-        max_tokens: s.maxTokens,
-        title: 'Cryptex/AntiClassifier-v2',
-        messages: [
-          {
-            role: 'system',
-            content: ANTICLASSIFIER_SYSTEM_PROMPT,
-            providerOptions: {
-              anthropic: { cacheControl: { type: 'ephemeral', ttl: '1h' } }
-            }
-          },
-          { role: 'user', content: userMessage }
-        ]
-      });
-      s.output = unwrap(res.content, 'json');
-      sessionLog.record({
-        tool: 'anticlassifier',
-        operation: 'transform',
-        label: modelPref.value,
-        input: s.input,
-        output: s.output,
-        options: { model: modelPref.value, temperature: tempPref.value, maxTokens: s.maxTokens }
-      });
-      notify.success('Transformation complete');
-    } catch (err) {
-      if (err instanceof GatewayError) {
-        lastError = err;
-      } else if (err instanceof OpenRouterError) {
-        errorMsg = err.message;
-        notify.error(errorMsg);
-      } else {
-        errorMsg = (err as Error).message || 'Request failed';
-        notify.error(errorMsg);
+    const r = activeRuns.start<AntiClassifierData>(TOOL_ID, { lastError: null }, 'rewriting…');
+
+    void (async () => {
+      try {
+        // NOTE: reasoning_effort / thinking_level from tuneParams are not yet threaded through
+        // ChatRequest — future gateway widening will add those knobs. temperature-only for now.
+        const { temperature } = tuneParams(modelPref.value, 'analyze');
+        const userMessage = buildAntiClassifierUserMessage(s.input);
+        const res = await chat({
+          model: modelPref.value,
+          temperature: temperature ?? tempPref.value,
+          max_tokens: s.maxTokens,
+          title: 'Cryptex/AntiClassifier-v2',
+          messages: [
+            {
+              role: 'system',
+              content: ANTICLASSIFIER_SYSTEM_PROMPT,
+              providerOptions: {
+                anthropic: { cacheControl: { type: 'ephemeral', ttl: '1h' } }
+              }
+            },
+            { role: 'user', content: userMessage }
+          ],
+          signal: r.controller.signal
+        });
+        s.output = unwrap(res.content, 'json');
+        sessionLog.record({
+          tool: 'anticlassifier',
+          operation: 'transform',
+          label: modelPref.value,
+          input: s.input,
+          output: s.output,
+          options: { model: modelPref.value, temperature: tempPref.value, maxTokens: s.maxTokens }
+        });
+        activeRuns.finish(TOOL_ID, 'Transformation complete');
+        notify.success('Transformation complete');
+      } catch (err) {
+        if (r.controller.signal.aborted) {
+          if (activeRuns.get(TOOL_ID)?.status === 'running') activeRuns.cancel(TOOL_ID);
+          return;
+        }
+        if (err instanceof GatewayError) {
+          activeRuns.update<AntiClassifierData>(TOOL_ID, () => ({ lastError: err }));
+          activeRuns.fail(TOOL_ID, '');
+        } else if (err instanceof OpenRouterError) {
+          activeRuns.fail(TOOL_ID, err.message);
+          notify.error(err.message);
+        } else {
+          const msg = (err as Error).message || 'Request failed';
+          activeRuns.fail(TOOL_ID, msg);
+          notify.error(msg);
+        }
       }
-    } finally {
-      loading = false;
-    }
+    })();
   }
 
   async function copyOutput() {

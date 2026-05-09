@@ -5,43 +5,67 @@
   import NoProviderBanner from '$lib/components/ai/NoProviderBanner.svelte';
   import { createPersistedState } from '$lib/stores/_persisted.svelte';
   import { useToolState } from '$lib/stores/tool-state.svelte';
+  import { activeRuns } from '$lib/stores/activeRuns.svelte';
   import { notify } from '$lib/stores/toast.svelte';
   import Loader from 'lucide-svelte/icons/loader-circle';
   import Play from 'lucide-svelte/icons/play';
   import Gauge from 'lucide-svelte/icons/gauge';
   import UsageHint from '$lib/components/shell/UsageHint.svelte';
 
+  type StrongRejectData = { score: StrongRejectScore | null };
+  const TOOL_ID = 'strongreject';
+
   const judgePref = createPersistedState<string>('cryptex.strongreject.judge', 'openrouter:openai/gpt-4o-mini');
 
   const request = useToolState<string>('strongreject', 'request', '');
   const response = useToolState<string>('strongreject', 'response', '');
-  let score = $state<StrongRejectScore | null>(null);
-  let busy = $state(false);
-  let errorMsg = $state('');
+
+  const run = $derived(activeRuns.get<StrongRejectData>(TOOL_ID));
+  const busy = $derived(activeRuns.isRunning(TOOL_ID));
+  const score = $derived(run?.data.score ?? null);
+  const errorMsg = $derived(run?.error ?? '');
   const keyConfigured = $derived(hasApiKey());
 
-  async function runScore() {
+  function runScore() {
     if (!request.value.trim() || !response.value.trim()) {
-      errorMsg = 'Both request and response are required.'; return;
+      activeRuns.start<StrongRejectData>(TOOL_ID, { score: null });
+      activeRuns.fail(TOOL_ID, 'Both request and response are required.');
+      return;
     }
-    if (!keyConfigured) { errorMsg = 'No provider configured.'; return; }
-    busy = true; errorMsg = ''; score = null;
-    try {
-      const res = await gatewayChat({
-        model: judgePref.value,
-        messages: [
-          { role: 'system', content: STRONGREJECT_JUDGE_PROMPT },
-          { role: 'user', content: `USER REQUEST:\n${request.value}\n\nTARGET RESPONSE:\n${response.value}` }
-        ],
-        maxOutputTokens: 200
-      });
-      score = parseScore(res.content);
-      notify.success(`Scored: ${(score.composite * 100).toFixed(0)}% (${scoreBucket(score.composite)})`);
-    } catch (err) {
-      errorMsg = (err as Error).message ?? 'Score failed';
-    } finally {
-      busy = false;
+    if (!keyConfigured) {
+      activeRuns.start<StrongRejectData>(TOOL_ID, { score: null });
+      activeRuns.fail(TOOL_ID, 'No provider configured.');
+      return;
     }
+    const r = activeRuns.start<StrongRejectData>(TOOL_ID, { score: null }, 'scoring…');
+
+    void (async () => {
+      try {
+        const res = await gatewayChat({
+          model: judgePref.value,
+          messages: [
+            { role: 'system', content: STRONGREJECT_JUDGE_PROMPT },
+            { role: 'user', content: `USER REQUEST:\n${request.value}\n\nTARGET RESPONSE:\n${response.value}` }
+          ],
+          maxOutputTokens: 200,
+          signal: r.controller.signal
+        });
+        const parsed = parseScore(res.content);
+        activeRuns.update<StrongRejectData>(TOOL_ID, () => ({ score: parsed }));
+        activeRuns.finish(
+          TOOL_ID,
+          `${(parsed.composite * 100).toFixed(0)}% (${scoreBucket(parsed.composite)})`
+        );
+        notify.success(`Scored: ${(parsed.composite * 100).toFixed(0)}% (${scoreBucket(parsed.composite)})`);
+      } catch (err) {
+        const msg = (err as Error).message ?? 'Score failed';
+        if (r.controller.signal.aborted) {
+          if (activeRuns.get(TOOL_ID)?.status === 'running') activeRuns.cancel(TOOL_ID);
+        } else {
+          activeRuns.fail(TOOL_ID, msg);
+        }
+      }
+    })();
   }
 
   function bucketColor(b: ReturnType<typeof scoreBucket>): string {

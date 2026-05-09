@@ -6,6 +6,7 @@
   import NoProviderBanner from '$lib/components/ai/NoProviderBanner.svelte';
   import { createPersistedState } from '$lib/stores/_persisted.svelte';
   import { useToolState } from '$lib/stores/tool-state.svelte';
+  import { activeRuns } from '$lib/stores/activeRuns.svelte';
   import { notify } from '$lib/stores/toast.svelte';
   import Loader from 'lucide-svelte/icons/loader-circle';
   import Play from 'lucide-svelte/icons/play';
@@ -13,17 +14,21 @@
   import ShieldCheck from 'lucide-svelte/icons/shield-check';
   import UsageHint from '$lib/components/shell/UsageHint.svelte';
 
+  type JbbData = { results: FanoutResult[]; progress: number; total: number };
+  const TOOL_ID = 'jbb';
+
   const targetPref = createPersistedState<string>('cryptex.jbb.target', 'openrouter:openrouter/auto');
   const judgePref = createPersistedState<string>('cryptex.jbb.judge', 'openrouter:openai/gpt-4o-mini');
 
   const category = useToolState<JbbCategory | 'all'>('jbb', 'category', 'all');
   const domain = useToolState<JbbDomain | 'all'>('jbb', 'domain', 'all');
-  let running = $state(false);
-  let controller: AbortController | null = null;
-  let results = $state<FanoutResult[]>([]);
-  let progress = $state(0);
-  let total = $state(0);
-  let errorMsg = $state('');
+
+  const run = $derived(activeRuns.get<JbbData>(TOOL_ID));
+  const running = $derived(activeRuns.isRunning(TOOL_ID));
+  const results = $derived(run?.data.results ?? []);
+  const progress = $derived(run?.data.progress ?? 0);
+  const total = $derived(run?.data.total ?? 0);
+  const errorMsg = $derived(run?.error ?? '');
   const keyConfigured = $derived(hasApiKey());
 
   const items = $derived.by<FanoutItem[]>(() => {
@@ -62,35 +67,51 @@
     return { harmRefused, harmTotal, benignAnswered, benignTotal, judgeErrors };
   });
 
-  async function runBenchmark() {
-    if (!keyConfigured) { errorMsg = 'No provider configured.'; return; }
-    running = true; errorMsg = ''; results = []; progress = 0;
-    total = items.length;
-    controller = new AbortController();
-
-    try {
-      await fanout({
-        task: 'jbb evaluation',
-        items,
-        targetModelId: targetPref.value,
-        judgeModelId: judgePref.value,
-        signal: controller.signal,
-        gateway: { chat: gatewayChat, streamChat: gatewayStreamChat },
-        concurrency: 3,
-        onResult: (r) => {
-          results = [...results, r];
-          progress = results.length;
-        }
-      });
-      notify.success('JBB run complete');
-    } catch (err) {
-      errorMsg = (err as Error).message ?? 'JBB failed';
-    } finally {
-      running = false; controller = null;
+  function runBenchmark() {
+    if (!keyConfigured) {
+      activeRuns.start<JbbData>(TOOL_ID, { results: [], progress: 0, total: 0 });
+      activeRuns.fail(TOOL_ID, 'No provider configured.');
+      return;
     }
+    const totalCount = items.length;
+    const r = activeRuns.start<JbbData>(
+      TOOL_ID,
+      { results: [], progress: 0, total: totalCount },
+      `0 / ${totalCount}`
+    );
+
+    void (async () => {
+      try {
+        await fanout({
+          task: 'jbb evaluation',
+          items,
+          targetModelId: targetPref.value,
+          judgeModelId: judgePref.value,
+          signal: r.controller.signal,
+          gateway: { chat: gatewayChat, streamChat: gatewayStreamChat },
+          concurrency: 3,
+          onResult: (res) => {
+            activeRuns.update<JbbData>(TOOL_ID, (d) => ({
+              results: [...d.results, res],
+              progress: d.results.length + 1,
+              total: d.total
+            }));
+          }
+        });
+        activeRuns.finish(TOOL_ID, 'JBB run complete');
+        notify.success('JBB run complete');
+      } catch (err) {
+        const msg = (err as Error).message ?? 'JBB failed';
+        if (r.controller.signal.aborted) {
+          if (activeRuns.get(TOOL_ID)?.status === 'running') activeRuns.cancel(TOOL_ID);
+        } else {
+          activeRuns.fail(TOOL_ID, msg);
+        }
+      }
+    })();
   }
 
-  function stop() { controller?.abort(); running = false; }
+  function stop() { activeRuns.cancel(TOOL_ID); }
 </script>
 
 <svelte:head><title>JailbreakBench · Cryptex</title></svelte:head>

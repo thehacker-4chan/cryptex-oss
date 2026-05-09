@@ -5,6 +5,7 @@
   import NoProviderBanner from '$lib/components/ai/NoProviderBanner.svelte';
   import { createPersistedState } from '$lib/stores/_persisted.svelte';
   import { useToolState } from '$lib/stores/tool-state.svelte';
+  import { activeRuns } from '$lib/stores/activeRuns.svelte';
   import { notify } from '$lib/stores/toast.svelte';
   import Loader from 'lucide-svelte/icons/loader-circle';
   import Play from 'lucide-svelte/icons/play';
@@ -13,6 +14,9 @@
   import Plus from 'lucide-svelte/icons/plus';
   import X from 'lucide-svelte/icons/x';
   import UsageHint from '$lib/components/shell/UsageHint.svelte';
+
+  type CrossDiffData = { results: FanoutResult[]; progress: number; total: number };
+  const TOOL_ID = 'cross-model-diff';
 
   // Persist the model list as a JSON string so multiple targets survive reload.
   const targetsPref = createPersistedState<string>(
@@ -28,11 +32,13 @@
   let pendingTarget = $state<string>('openrouter:openrouter/auto');
 
   const prompt = useToolState<string>('cross-model-diff', 'prompt', '');
-  let running = $state(false);
-  let controller: AbortController | null = null;
-  let results = $state<FanoutResult[]>([]);
-  let progress = $state(0);
-  let errorMsg = $state('');
+
+  // Run state lives in activeRuns — survives route navigation.
+  const run = $derived(activeRuns.get<CrossDiffData>(TOOL_ID));
+  const running = $derived(activeRuns.isRunning(TOOL_ID));
+  const results = $derived(run?.data.results ?? []);
+  const progress = $derived(run?.data.progress ?? 0);
+  const errorMsg = $derived(run?.error ?? '');
 
   const keyConfigured = $derived(hasApiKey());
 
@@ -49,53 +55,64 @@
     targets = targets.filter((t) => t !== m);
   }
 
-  async function runDiff() {
+  function runDiff() {
     if (!prompt.value.trim()) {
-      errorMsg = 'Enter a prompt to diff.';
+      activeRuns.start<CrossDiffData>(TOOL_ID, { results: [], progress: 0, total: 0 });
+      activeRuns.fail(TOOL_ID, 'Enter a prompt to diff.');
       return;
     }
     if (targets.length === 0) {
-      errorMsg = 'Add at least one target model.';
+      activeRuns.start<CrossDiffData>(TOOL_ID, { results: [], progress: 0, total: 0 });
+      activeRuns.fail(TOOL_ID, 'Add at least one target model.');
       return;
     }
     if (!keyConfigured) {
-      errorMsg = 'No provider configured. Add one in Settings.';
+      activeRuns.start<CrossDiffData>(TOOL_ID, { results: [], progress: 0, total: 0 });
+      activeRuns.fail(TOOL_ID, 'No provider configured. Add one in Settings.');
       return;
     }
-    running = true;
-    errorMsg = '';
-    results = [];
-    progress = 0;
-    controller = new AbortController();
+
+    const totalCount = targets.length;
+    const r = activeRuns.start<CrossDiffData>(
+      TOOL_ID,
+      { results: [], progress: 0, total: totalCount },
+      `0 / ${totalCount}`
+    );
 
     const items: FanoutItem[] = targets.map((m) => ({ id: m, name: m, prompt: prompt.value }));
 
-    try {
-      await fanout({
-        task: prompt.value,
-        items,
-        perItemTarget: (item) => item.id,
-        judgeModelId: judgePref.value,
-        signal: controller.signal,
-        gateway: { chat: gatewayChat, streamChat: gatewayStreamChat },
-        concurrency: targets.length,
-        onResult: (r) => {
-          results = [...results, r].sort((a, b) => b.judgeScore - a.judgeScore);
-          progress = results.length;
+    void (async () => {
+      try {
+        await fanout({
+          task: prompt.value,
+          items,
+          perItemTarget: (item) => item.id,
+          judgeModelId: judgePref.value,
+          signal: r.controller.signal,
+          gateway: { chat: gatewayChat, streamChat: gatewayStreamChat },
+          concurrency: totalCount,
+          onResult: (res) => {
+            activeRuns.update<CrossDiffData>(TOOL_ID, (d) => {
+              const merged = [...d.results, res].sort((a, b) => b.judgeScore - a.judgeScore);
+              return { results: merged, progress: merged.length, total: d.total };
+            });
+          }
+        });
+        activeRuns.finish(TOOL_ID, `Diffed ${totalCount} models`);
+        notify.success(`Diffed ${totalCount} models`);
+      } catch (err) {
+        const msg = (err as Error).message ?? 'Diff failed';
+        if (r.controller.signal.aborted) {
+          if (activeRuns.get(TOOL_ID)?.status === 'running') activeRuns.cancel(TOOL_ID);
+        } else {
+          activeRuns.fail(TOOL_ID, msg);
         }
-      });
-      notify.success(`Diffed ${targets.length} models`);
-    } catch (err) {
-      errorMsg = (err as Error).message ?? 'Diff failed';
-    } finally {
-      running = false;
-      controller = null;
-    }
+      }
+    })();
   }
 
   function stop() {
-    controller?.abort();
-    running = false;
+    activeRuns.cancel(TOOL_ID);
   }
 
   async function copyReply(r: FanoutResult) {

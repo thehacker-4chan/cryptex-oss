@@ -5,6 +5,7 @@
   import NoProviderBanner from '$lib/components/ai/NoProviderBanner.svelte';
   import { createPersistedState } from '$lib/stores/_persisted.svelte';
   import { useToolState } from '$lib/stores/tool-state.svelte';
+  import { activeRuns } from '$lib/stores/activeRuns.svelte';
   import { notify } from '$lib/stores/toast.svelte';
   import Loader from 'lucide-svelte/icons/loader-circle';
   import Play from 'lucide-svelte/icons/play';
@@ -23,20 +24,29 @@
     pending?: boolean;
   };
 
+  type ReplayerData = { turns: ReplayTurn[]; progress: number; total: number };
+  const TOOL_ID = 'replayer';
+
   const rawJson = useToolState<string>('replayer', 'rawJson', '');
-  let turns = $state<ReplayTurn[]>([]);
+  // Local "parsed but not yet replayed" turns. While a run is active or done,
+  // the UI prefers activeRuns over this local copy.
+  let parsedTurns = $state<ReplayTurn[]>([]);
   let parseError = $state<string>('');
-  let running = $state(false);
-  let controller: AbortController | null = null;
-  let progress = $state(0);
-  let errorMsg = $state('');
+
+  // Run state — survives route navigation.
+  const run = $derived(activeRuns.get<ReplayerData>(TOOL_ID));
+  const running = $derived(activeRuns.isRunning(TOOL_ID));
+  const progress = $derived(run?.data.progress ?? 0);
+  const errorMsg = $derived(run?.error ?? '');
+  // Prefer the run's turns (live or completed) so navigating away + back keeps state.
+  const turns = $derived(run?.data.turns ?? parsedTurns);
 
   const keyConfigured = $derived(hasApiKey());
 
   function parseInput() {
     parseError = '';
     if (!rawJson.value.trim()) {
-      turns = [];
+      parsedTurns = [];
       return;
     }
     try {
@@ -74,16 +84,21 @@
         const role = c.from === 'human' ? 'user' : c.from === 'gpt' ? 'assistant' : 'system';
         newTurns.push({ role: role as 'user' | 'assistant' | 'system', original: c.value });
       }
-      turns = newTurns;
+      parsedTurns = newTurns;
     } catch (e) {
       parseError = (e as Error).message;
-      turns = [];
+      parsedTurns = [];
     }
   }
 
   $effect(() => {
     void rawJson.value;
     parseInput();
+    // If the user edits raw JSON after a previous run, drop the stale run
+    // so the parsed turns become the displayed ones.
+    if (activeRuns.get(TOOL_ID) && !activeRuns.isRunning(TOOL_ID)) {
+      activeRuns.clear(TOOL_ID);
+    }
   });
 
   async function loadFromFile(e: Event) {
@@ -94,66 +109,104 @@
     input.value = '';
   }
 
-  async function replay() {
-    if (turns.length === 0) {
-      errorMsg = 'No turns to replay. Paste a ShareGPT JSON or messages array.';
+  function replay() {
+    if (parsedTurns.length === 0) {
+      activeRuns.start<ReplayerData>(TOOL_ID, { turns: [], progress: 0, total: 0 });
+      activeRuns.fail(TOOL_ID, 'No turns to replay. Paste a ShareGPT JSON or messages array.');
       return;
     }
     if (!keyConfigured) {
-      errorMsg = 'No provider configured. Add one in Settings.';
+      activeRuns.start<ReplayerData>(TOOL_ID, { turns: [], progress: 0, total: 0 });
+      activeRuns.fail(TOOL_ID, 'No provider configured. Add one in Settings.');
       return;
     }
-    running = true;
-    errorMsg = '';
-    progress = 0;
-    controller = new AbortController();
 
-    // Build a rolling history; replay every assistant turn against the
-    // configured target. System + user turns pass through unchanged.
-    const history: ChatMessage[] = [];
-    const newTurns: ReplayTurn[] = turns.map((t) => ({ ...t, replayed: undefined, error: undefined, pending: false }));
-    turns = newTurns;
+    // Snapshot the parsed turns into the run's data — fresh copies so we
+    // can mutate replayed/error/pending without leaking back to parsedTurns.
+    const initialTurns: ReplayTurn[] = parsedTurns.map((t) => ({
+      ...t,
+      replayed: undefined,
+      error: undefined,
+      pending: false
+    }));
+    const totalCount = initialTurns.length;
+    const r = activeRuns.start<ReplayerData>(
+      TOOL_ID,
+      { turns: initialTurns, progress: 0, total: totalCount },
+      `0 / ${totalCount}`
+    );
 
-    for (let i = 0; i < newTurns.length; i++) {
-      if (controller.signal.aborted) break;
-      const t = newTurns[i];
-      if (t.role !== 'assistant') {
-        history.push({ role: t.role, content: t.original });
-        continue;
-      }
-      newTurns[i] = { ...t, pending: true };
-      turns = [...newTurns];
+    void (async () => {
+      const history: ChatMessage[] = [];
+      // Work on a local copy of turns; push into activeRuns after each mutation.
+      const working: ReplayTurn[] = [...initialTurns];
       try {
-        const res = await gatewayChat({
-          model: targetPref.value,
-          messages: history,
-          signal: controller.signal
-        });
-        newTurns[i] = { ...t, replayed: res.content, pending: false };
-        history.push({ role: 'assistant', content: res.content });
+        for (let i = 0; i < working.length; i++) {
+          if (r.controller.signal.aborted) break;
+          const t = working[i];
+          if (t.role !== 'assistant') {
+            history.push({ role: t.role, content: t.original });
+            activeRuns.update<ReplayerData>(TOOL_ID, (d) => ({
+              turns: [...working],
+              progress: i + 1,
+              total: d.total
+            }));
+            continue;
+          }
+          working[i] = { ...t, pending: true };
+          activeRuns.update<ReplayerData>(TOOL_ID, (d) => ({
+            turns: [...working],
+            progress: d.progress,
+            total: d.total
+          }));
+          try {
+            const res = await gatewayChat({
+              model: targetPref.value,
+              messages: history,
+              signal: r.controller.signal
+            });
+            working[i] = { ...t, replayed: res.content, pending: false };
+            history.push({ role: 'assistant', content: res.content });
+          } catch (err) {
+            if (r.controller.signal.aborted) {
+              break;
+            }
+            working[i] = {
+              ...t,
+              replayed: undefined,
+              pending: false,
+              error: (err as Error).message ?? 'replay failed'
+            };
+            // Keep the original assistant turn in history so subsequent turns
+            // still see the conversation arc the original had.
+            history.push({ role: 'assistant', content: t.original });
+          }
+          activeRuns.update<ReplayerData>(TOOL_ID, (d) => ({
+            turns: [...working],
+            progress: i + 1,
+            total: d.total
+          }));
+        }
+        if (r.controller.signal.aborted) {
+          if (activeRuns.get(TOOL_ID)?.status === 'running') activeRuns.cancel(TOOL_ID);
+        } else {
+          const replayedCount = working.filter((t) => t.role === 'assistant').length;
+          activeRuns.finish(TOOL_ID, `Replayed ${replayedCount} assistant turns`);
+          notify.success(`Replayed ${replayedCount} assistant turns`);
+        }
       } catch (err) {
-        newTurns[i] = {
-          ...t,
-          replayed: undefined,
-          pending: false,
-          error: (err as Error).message ?? 'replay failed'
-        };
-        // Keep the original assistant turn in history so subsequent turns
-        // still see the conversation arc the original conversation had.
-        history.push({ role: 'assistant', content: t.original });
+        const msg = (err as Error).message ?? 'Replay failed';
+        if (r.controller.signal.aborted) {
+          if (activeRuns.get(TOOL_ID)?.status === 'running') activeRuns.cancel(TOOL_ID);
+        } else {
+          activeRuns.fail(TOOL_ID, msg);
+        }
       }
-      turns = [...newTurns];
-      progress = i + 1;
-    }
-
-    running = false;
-    controller = null;
-    notify.success(`Replayed ${turns.filter((t) => t.role === 'assistant').length} assistant turns`);
+    })();
   }
 
   function stop() {
-    controller?.abort();
-    running = false;
+    activeRuns.cancel(TOOL_ID);
   }
 
   async function copyReplayed(t: ReplayTurn) {

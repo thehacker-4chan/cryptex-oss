@@ -6,6 +6,7 @@
   import NoProviderBanner from '$lib/components/ai/NoProviderBanner.svelte';
   import { createPersistedState } from '$lib/stores/_persisted.svelte';
   import { useToolState } from '$lib/stores/tool-state.svelte';
+  import { activeRuns } from '$lib/stores/activeRuns.svelte';
   import { notify } from '$lib/stores/toast.svelte';
   import Loader from 'lucide-svelte/icons/loader-circle';
   import Play from 'lucide-svelte/icons/play';
@@ -13,17 +14,21 @@
   import Skull from 'lucide-svelte/icons/skull';
   import UsageHint from '$lib/components/shell/UsageHint.svelte';
 
+  type HarmBenchData = { results: FanoutResult[]; progress: number; total: number };
+  const TOOL_ID = 'harmbench';
+
   const targetPref = createPersistedState<string>('cryptex.harmbench.target', 'openrouter:openrouter/auto');
   const judgePref = createPersistedState<string>('cryptex.harmbench.judge', 'openrouter:openai/gpt-4o-mini');
 
   const category = useToolState<HarmBenchCategory | 'all'>('harmbench', 'category', 'all');
   const limit = useToolState<number>('harmbench', 'limit', 10);
-  let running = $state(false);
-  let controller: AbortController | null = null;
-  let results = $state<FanoutResult[]>([]);
-  let progress = $state(0);
-  let total = $state(0);
-  let errorMsg = $state('');
+
+  const run = $derived(activeRuns.get<HarmBenchData>(TOOL_ID));
+  const running = $derived(activeRuns.isRunning(TOOL_ID));
+  const results = $derived(run?.data.results ?? []);
+  const progress = $derived(run?.data.progress ?? 0);
+  const total = $derived(run?.data.total ?? 0);
+  const errorMsg = $derived(run?.error ?? '');
 
   const keyConfigured = $derived(hasApiKey());
 
@@ -48,35 +53,50 @@
   });
   const judgeErrors = $derived(results.filter((r) => !r.error && !Number.isFinite(r.judgeScore)).length);
 
-  async function runBenchmark() {
-    if (!keyConfigured) { errorMsg = 'No provider configured. Add one in Settings.'; return; }
-    running = true; errorMsg = ''; results = []; progress = 0;
-    total = items.length;
-    controller = new AbortController();
-
-    try {
-      await fanout({
-        task: 'harmbench evaluation',
-        items,
-        targetModelId: targetPref.value,
-        judgeModelId: judgePref.value,
-        signal: controller.signal,
-        gateway: { chat: gatewayChat, streamChat: gatewayStreamChat },
-        concurrency: 3,
-        onResult: (r) => {
-          results = [...results, r].sort((a, b) => b.judgeScore - a.judgeScore);
-          progress = results.length;
-        }
-      });
-      notify.success(`HarmBench complete: ${(refusalRate * 100).toFixed(0)}% refusal rate`);
-    } catch (err) {
-      errorMsg = (err as Error).message ?? 'HarmBench failed';
-    } finally {
-      running = false; controller = null;
+  function runBenchmark() {
+    if (!keyConfigured) {
+      activeRuns.start<HarmBenchData>(TOOL_ID, { results: [], progress: 0, total: 0 });
+      activeRuns.fail(TOOL_ID, 'No provider configured. Add one in Settings.');
+      return;
     }
+    const totalCount = items.length;
+    const r = activeRuns.start<HarmBenchData>(
+      TOOL_ID,
+      { results: [], progress: 0, total: totalCount },
+      `0 / ${totalCount}`
+    );
+
+    void (async () => {
+      try {
+        await fanout({
+          task: 'harmbench evaluation',
+          items,
+          targetModelId: targetPref.value,
+          judgeModelId: judgePref.value,
+          signal: r.controller.signal,
+          gateway: { chat: gatewayChat, streamChat: gatewayStreamChat },
+          concurrency: 3,
+          onResult: (res) => {
+            activeRuns.update<HarmBenchData>(TOOL_ID, (d) => {
+              const merged = [...d.results, res].sort((a, b) => b.judgeScore - a.judgeScore);
+              return { results: merged, progress: merged.length, total: d.total };
+            });
+          }
+        });
+        activeRuns.finish(TOOL_ID, `HarmBench complete`);
+        notify.success(`HarmBench complete: ${(refusalRate * 100).toFixed(0)}% refusal rate`);
+      } catch (err) {
+        const msg = (err as Error).message ?? 'HarmBench failed';
+        if (r.controller.signal.aborted) {
+          if (activeRuns.get(TOOL_ID)?.status === 'running') activeRuns.cancel(TOOL_ID);
+        } else {
+          activeRuns.fail(TOOL_ID, msg);
+        }
+      }
+    })();
   }
 
-  function stop() { controller?.abort(); running = false; }
+  function stop() { activeRuns.cancel(TOOL_ID); }
 </script>
 
 <svelte:head><title>HarmBench Runner · Cryptex</title></svelte:head>

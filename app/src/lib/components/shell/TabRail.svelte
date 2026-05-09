@@ -2,6 +2,7 @@
   import { page } from '$app/stores';
   import { base } from '$app/paths';
   import { cn } from '$lib/utils/cn';
+  import { activeRuns } from '$lib/stores/activeRuns.svelte';
   import Wand from 'lucide-svelte/icons/wand-sparkles';
   import ScanSearch from 'lucide-svelte/icons/scan-search';
   import Smile from 'lucide-svelte/icons/smile';
@@ -31,6 +32,26 @@
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   type Tab = { href: string; label: string; icon: any; status?: 'live' | 'soon' };
+
+  /**
+   * Map a tab href to the activeRuns toolId for the tool it points to.
+   * Tabs whose tools don't push run state into activeRuns return undefined
+   * (so no indicator shows).
+   */
+  function hrefToToolId(href: string): string | undefined {
+    switch (href) {
+      case '/promptcraft':                return 'promptcraft';
+      case '/anticlassifier':             return 'anticlassifier';
+      case '/redteam/probe-lab':          return 'probe-lab';
+      case '/redteam/cross-model-diff':   return 'cross-model-diff';
+      case '/redteam/replayer':           return 'replayer';
+      case '/redteam/harmbench':          return 'harmbench';
+      case '/redteam/strongreject':       return 'strongreject';
+      case '/redteam/jbb':                return 'jbb';
+      case '/redteam/fingerprinter':      return 'fingerprinter';
+      default:                            return undefined;
+    }
+  }
 
   const tabs: Tab[] = [
     { href: '/transforms',           label: 'Transform',    icon: Wand,           status: 'live' },
@@ -126,6 +147,8 @@
 
     {#each tabs as tab}
       {@const active = isActive(tab.href)}
+      {@const toolId = hrefToToolId(tab.href)}
+      {@const running = toolId ? activeRuns.isRunning(toolId) : false}
       <li class="relative flex-1 min-w-[130px]">
         <a
           href={base + tab.href}
@@ -143,6 +166,17 @@
             <span class="rounded-full bg-muted px-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground group-hover:bg-card group-hover:text-foreground/70">
               soon
             </span>
+          {/if}
+          {#if running}
+            <!-- Active-run indicator: small pulsing dot in the upper-right corner. -->
+            <span
+              aria-label="running"
+              title="Running"
+              class={cn(
+                'absolute right-1.5 top-1.5 inline-block h-1.5 w-1.5 rounded-full animate-pulse',
+                active ? 'bg-primary-foreground' : 'bg-primary'
+              )}
+            ></span>
           {/if}
         </a>
       </li>

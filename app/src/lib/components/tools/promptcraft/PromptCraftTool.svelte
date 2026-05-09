@@ -7,6 +7,7 @@
   import { Combobox } from '$lib/components/ui/combobox';
   import type { ComboboxOption } from '$lib/components/ui/combobox';
   import { createPersistedState } from '$lib/stores/_persisted.svelte';
+  import { activeRuns } from '$lib/stores/activeRuns.svelte';
   import { base } from '$app/paths';
   import { goto } from '$app/navigation';
   import { notify } from '$lib/stores/toast.svelte';
@@ -20,6 +21,9 @@
   import { promptcraftState } from './promptcraft.state.svelte';
   import ErrorBanner from '$lib/components/ai/ErrorBanner.svelte';
   import { GatewayError } from '$lib/ai/types';
+
+  type PromptCraftData = { lastError: GatewayError | null };
+  const TOOL_ID = 'promptcraft';
 
   // All eligible techniques (mutators + composites) keyed to Combobox options.
   const techniques = listPromptCraftTechniques();
@@ -38,80 +42,90 @@
   const tempPref = createPersistedState<number>('cryptex.pc.temperature', 0.9);
 
   const s = promptcraftState;
-  let loading = $state(false);
-  let errorMsg = $state('');
-  let lastError = $state<GatewayError | null>(null);
+
+  const run_ = $derived(activeRuns.get<PromptCraftData>(TOOL_ID));
+  const loading = $derived(activeRuns.isRunning(TOOL_ID));
+  const errorMsg = $derived(run_?.error ?? '');
+  const lastError = $derived(run_?.data.lastError ?? null);
 
   const keyConfigured = $derived(hasApiKey());
 
-  async function run() {
+  function run() {
     if (!keyConfigured) {
-      errorMsg = 'No provider configured. Add one in Settings to unlock this tool.';
+      activeRuns.start<PromptCraftData>(TOOL_ID, { lastError: null });
+      activeRuns.fail(TOOL_ID, 'No provider configured. Add one in Settings to unlock this tool.');
       return;
     }
     if (!s.input.trim()) {
-      errorMsg = 'Enter a prompt to mutate.';
+      activeRuns.start<PromptCraftData>(TOOL_ID, { lastError: null });
+      activeRuns.fail(TOOL_ID, 'Enter a prompt to mutate.');
       return;
     }
 
-    errorMsg = '';
-    lastError = null;
-    loading = true;
-    // applyTechniqueForVariant correctly handles both LLM-generative and
-    // local-template techniques. For local-template picks, it applies the
-    // template locally then sends only a variation-only system prompt so
-    // PromptCraft can generate variance without forcing the meta-LLM to
-    // re-evaluate template content from scratch.
-    const { system, user } = applyTechniqueForVariant(s.strategy, s.input, s.customInstruction);
-    const n = Math.max(1, Math.min(10, s.count));
+    const r = activeRuns.start<PromptCraftData>(TOOL_ID, { lastError: null }, 'mutating…');
 
-    // NOTE: reasoning_effort / thinking_level from tuneParams are not yet threaded through
-    // ChatRequest — future gateway widening will add those knobs. temperature-only for now.
-    const { temperature } = tuneParams(modelPref.value, 'mutate');
-    const runs = Array.from({ length: n }, () =>
-      chat({
-        model: modelPref.value,
-        temperature: temperature ?? tempPref.value,
-        max_tokens: 2048,
-        title: `Cryptex/PromptCraft/${s.strategy}-v2`,
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user',   content: user }
-        ]
-      })
-    );
+    void (async () => {
+      // applyTechniqueForVariant correctly handles both LLM-generative and
+      // local-template techniques. For local-template picks, it applies the
+      // template locally then sends only a variation-only system prompt so
+      // PromptCraft can generate variance without forcing the meta-LLM to
+      // re-evaluate template content from scratch.
+      const { system, user } = applyTechniqueForVariant(s.strategy, s.input, s.customInstruction);
+      const n = Math.max(1, Math.min(10, s.count));
 
-    const results = await Promise.allSettled(runs);
-    const fulfilled: string[] = [];
-    let lastErrMsg = '';
-    let lastGwError: GatewayError | null = null;
-    for (const r of results) {
-      if (r.status === 'fulfilled') fulfilled.push(r.value.content);
-      else if (r.reason instanceof GatewayError) { lastGwError = r.reason; lastErrMsg = r.reason.message; }
-      else if (r.reason instanceof OpenRouterError) { lastErrMsg = r.reason.message; }
-      else if (r.reason instanceof Error) lastErrMsg = r.reason.message;
-    }
+      // NOTE: reasoning_effort / thinking_level from tuneParams are not yet threaded through
+      // ChatRequest — future gateway widening will add those knobs. temperature-only for now.
+      const { temperature } = tuneParams(modelPref.value, 'mutate');
+      const runs = Array.from({ length: n }, () =>
+        chat({
+          model: modelPref.value,
+          temperature: temperature ?? tempPref.value,
+          max_tokens: 2048,
+          title: `Cryptex/PromptCraft/${s.strategy}-v2`,
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user',   content: user }
+          ],
+          signal: r.controller.signal
+        })
+      );
 
-    loading = false;
+      const results = await Promise.allSettled(runs);
+      const fulfilled: string[] = [];
+      let lastErrMsg = '';
+      let lastGwError: GatewayError | null = null;
+      for (const res of results) {
+        if (res.status === 'fulfilled') fulfilled.push(res.value.content);
+        else if (res.reason instanceof GatewayError) { lastGwError = res.reason; lastErrMsg = res.reason.message; }
+        else if (res.reason instanceof OpenRouterError) { lastErrMsg = res.reason.message; }
+        else if (res.reason instanceof Error) lastErrMsg = res.reason.message;
+      }
 
-    if (fulfilled.length === 0) {
-      // Preserve previous outputs — don't wipe them on a transient failure
-      lastError = lastGwError;
-      errorMsg = lastGwError ? '' : (lastErrMsg || 'All variants failed. Check your model or try again.');
-      if (!lastGwError) notify.error(errorMsg);
-    } else {
-      s.outputs = fulfilled;
-      if (fulfilled.length < n) notify.warn(`${fulfilled.length}/${n} variants succeeded`);
-      else notify.success(`Generated ${fulfilled.length} variants`);
-      sessionLog.record({
-        tool: 'promptcraft',
-        operation: s.strategy,
-        label: `${fulfilled.length} variants`,
-        input: s.input,
-        output: fulfilled.join('\n\n---\n\n'),
-        options: { model: modelPref.value, temperature: tempPref.value, count: n }
-      });
-    }
+      if (fulfilled.length === 0) {
+        // Preserve previous outputs — don't wipe them on a transient failure
+        if (lastGwError) {
+          activeRuns.update<PromptCraftData>(TOOL_ID, () => ({ lastError: lastGwError }));
+          activeRuns.fail(TOOL_ID, '');
+        } else {
+          const msg = lastErrMsg || 'All variants failed. Check your model or try again.';
+          activeRuns.fail(TOOL_ID, msg);
+          notify.error(msg);
+        }
+      } else {
+        s.outputs = fulfilled;
+        if (fulfilled.length < n) notify.warn(`${fulfilled.length}/${n} variants succeeded`);
+        else notify.success(`Generated ${fulfilled.length} variants`);
+        sessionLog.record({
+          tool: 'promptcraft',
+          operation: s.strategy,
+          label: `${fulfilled.length} variants`,
+          input: s.input,
+          output: fulfilled.join('\n\n---\n\n'),
+          options: { model: modelPref.value, temperature: tempPref.value, count: n }
+        });
+        activeRuns.finish(TOOL_ID, `Generated ${fulfilled.length} variants`);
+      }
+    })();
   }
 
   async function copy(text: string, label: string) {

@@ -6,6 +6,7 @@
   import NoProviderBanner from '$lib/components/ai/NoProviderBanner.svelte';
   import { createPersistedState } from '$lib/stores/_persisted.svelte';
   import { useToolState } from '$lib/stores/tool-state.svelte';
+  import { activeRuns } from '$lib/stores/activeRuns.svelte';
   import { notify } from '$lib/stores/toast.svelte';
   import Loader from 'lucide-svelte/icons/loader-circle';
   import Play from 'lucide-svelte/icons/play';
@@ -13,16 +14,21 @@
   import Copy from 'lucide-svelte/icons/copy';
   import UsageHint from '$lib/components/shell/UsageHint.svelte';
 
+  type ProbeLabData = { results: FanoutResult[]; progress: number; total: number };
+  const TOOL_ID = 'probe-lab';
+
   const targetModelPref = createPersistedState<string>('cryptex.probelab.target', 'openrouter:openrouter/auto');
   const judgeModelPref = createPersistedState<string>('cryptex.probelab.judge', 'openrouter:openai/gpt-4o-mini');
 
   const task = useToolState<string>('probe-lab', 'task', '');
-  let running = $state(false);
-  let controller: AbortController | null = null;
-  let results = $state<FanoutResult[]>([]);
-  let progress = $state(0);
-  let total = $state(0);
-  let errorMsg = $state('');
+
+  // Run state lives in the activeRuns registry — survives route navigation.
+  const run = $derived(activeRuns.get<ProbeLabData>(TOOL_ID));
+  const running = $derived(activeRuns.isRunning(TOOL_ID));
+  const results = $derived(run?.data.results ?? []);
+  const progress = $derived(run?.data.progress ?? 0);
+  const total = $derived(run?.data.total ?? 0);
+  const errorMsg = $derived(run?.error ?? '');
 
   const keyConfigured = $derived(hasApiKey());
 
@@ -52,49 +58,64 @@
     );
   });
 
-  async function runProbe() {
+  // Fire-and-forget — keeps running across route navigation because
+  // activeRuns lives at module scope, not component scope.
+  function runProbe() {
     if (!task.value.trim()) {
-      errorMsg = 'Enter a task to probe.';
+      // We don't currently have a run, so use a transient one to surface the error.
+      activeRuns.start<ProbeLabData>(TOOL_ID, { results: [], progress: 0, total: 0 });
+      activeRuns.fail(TOOL_ID, 'Enter a task to probe.');
       return;
     }
     if (!keyConfigured) {
-      errorMsg = 'No provider configured. Add one in Settings.';
+      activeRuns.start<ProbeLabData>(TOOL_ID, { results: [], progress: 0, total: 0 });
+      activeRuns.fail(TOOL_ID, 'No provider configured. Add one in Settings.');
       return;
     }
-    running = true;
-    errorMsg = '';
-    results = [];
-    progress = 0;
-    total = candidates.length;
-    controller = new AbortController();
 
-    try {
-      await fanout({
-        task: task.value,
-        items: candidates,
-        targetModelId: targetModelPref.value,
-        judgeModelId: judgeModelPref.value,
-        signal: controller.signal,
-        gateway: { chat: gatewayChat, streamChat: gatewayStreamChat },
-        concurrency: 5,
-        onResult: (r) => {
-          // Push the streaming result + maintain sort order live.
-          results = [...results, r].sort((a, b) => b.judgeScore - a.judgeScore);
-          progress = results.length;
+    const totalCount = candidates.length;
+    const r = activeRuns.start<ProbeLabData>(
+      TOOL_ID,
+      { results: [], progress: 0, total: totalCount },
+      `0 / ${totalCount}`
+    );
+
+    void (async () => {
+      try {
+        await fanout({
+          task: task.value,
+          items: candidates,
+          targetModelId: targetModelPref.value,
+          judgeModelId: judgeModelPref.value,
+          signal: r.controller.signal,
+          gateway: { chat: gatewayChat, streamChat: gatewayStreamChat },
+          concurrency: 5,
+          onResult: (res) => {
+            activeRuns.update<ProbeLabData>(TOOL_ID, (d) => {
+              const merged = [...d.results, res].sort((a, b) => b.judgeScore - a.judgeScore);
+              return { results: merged, progress: merged.length, total: d.total };
+            }, `${(activeRuns.get<ProbeLabData>(TOOL_ID)?.data.progress ?? 0) + 1} / ${totalCount}`);
+          }
+        });
+        activeRuns.finish(TOOL_ID, `Probed ${totalCount} techniques`);
+        notify.success(`Probed ${totalCount} techniques`);
+      } catch (err) {
+        const msg = (err as Error).message ?? 'Probe failed';
+        // Treat aborts as cancel rather than error.
+        if (r.controller.signal.aborted) {
+          // cancel() may have already marked it; if not, mark cancelled.
+          if (activeRuns.get(TOOL_ID)?.status === 'running') {
+            activeRuns.cancel(TOOL_ID);
+          }
+        } else {
+          activeRuns.fail(TOOL_ID, msg);
         }
-      });
-      notify.success(`Probed ${total} techniques`);
-    } catch (err) {
-      errorMsg = (err as Error).message ?? 'Probe failed';
-    } finally {
-      running = false;
-      controller = null;
-    }
+      }
+    })();
   }
 
   function stop() {
-    controller?.abort();
-    running = false;
+    activeRuns.cancel(TOOL_ID);
   }
 
   async function copyReply(r: FanoutResult) {

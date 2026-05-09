@@ -5,6 +5,7 @@
   import ModelPickerV2 from '$lib/components/ai/ModelPickerV2.svelte';
   import NoProviderBanner from '$lib/components/ai/NoProviderBanner.svelte';
   import { createPersistedState } from '$lib/stores/_persisted.svelte';
+  import { activeRuns } from '$lib/stores/activeRuns.svelte';
   import { notify } from '$lib/stores/toast.svelte';
   import Loader from 'lucide-svelte/icons/loader-circle';
   import Play from 'lucide-svelte/icons/play';
@@ -12,15 +13,18 @@
   import Fingerprint from 'lucide-svelte/icons/fingerprint';
   import UsageHint from '$lib/components/shell/UsageHint.svelte';
 
+  type FingerprintData = { results: FanoutResult[]; progress: number; total: number };
+  const TOOL_ID = 'fingerprinter';
+
   const targetPref = createPersistedState<string>('cryptex.fingerprinter.target', 'openrouter:openrouter/auto');
   const judgePref = createPersistedState<string>('cryptex.fingerprinter.judge', 'openrouter:openai/gpt-4o-mini');
 
-  let running = $state(false);
-  let controller: AbortController | null = null;
-  let results = $state<FanoutResult[]>([]);
-  let progress = $state(0);
-  let total = $state(0);
-  let errorMsg = $state('');
+  const run = $derived(activeRuns.get<FingerprintData>(TOOL_ID));
+  const running = $derived(activeRuns.isRunning(TOOL_ID));
+  const results = $derived(run?.data.results ?? []);
+  const progress = $derived(run?.data.progress ?? 0);
+  const total = $derived(run?.data.total ?? 0);
+  const errorMsg = $derived(run?.error ?? '');
   const keyConfigured = $derived(hasApiKey());
 
   const items: FanoutItem[] = FINGERPRINT_PROBES.map((p) => ({
@@ -46,34 +50,51 @@
     return { topClass: sorted[0]?.[0] ?? 'unknown' as DefenseClass, counts: sorted, totalRefusals };
   });
 
-  async function runFingerprint() {
-    if (!keyConfigured) { errorMsg = 'No provider configured.'; return; }
-    running = true; errorMsg = ''; results = []; progress = 0;
-    total = items.length;
-    controller = new AbortController();
-    try {
-      await fanout({
-        task: 'defense fingerprint',
-        items,
-        targetModelId: targetPref.value,
-        judgeModelId: judgePref.value,
-        signal: controller.signal,
-        gateway: { chat: gatewayChat, streamChat: gatewayStreamChat },
-        concurrency: 3,
-        onResult: (r) => {
-          results = [...results, r];
-          progress = results.length;
-        }
-      });
-      notify.success('Fingerprint complete');
-    } catch (err) {
-      errorMsg = (err as Error).message ?? 'Fingerprint failed';
-    } finally {
-      running = false; controller = null;
+  function runFingerprint() {
+    if (!keyConfigured) {
+      activeRuns.start<FingerprintData>(TOOL_ID, { results: [], progress: 0, total: 0 });
+      activeRuns.fail(TOOL_ID, 'No provider configured.');
+      return;
     }
+    const totalCount = items.length;
+    const r = activeRuns.start<FingerprintData>(
+      TOOL_ID,
+      { results: [], progress: 0, total: totalCount },
+      `0 / ${totalCount}`
+    );
+
+    void (async () => {
+      try {
+        await fanout({
+          task: 'defense fingerprint',
+          items,
+          targetModelId: targetPref.value,
+          judgeModelId: judgePref.value,
+          signal: r.controller.signal,
+          gateway: { chat: gatewayChat, streamChat: gatewayStreamChat },
+          concurrency: 3,
+          onResult: (res) => {
+            activeRuns.update<FingerprintData>(TOOL_ID, (d) => ({
+              results: [...d.results, res],
+              progress: d.results.length + 1,
+              total: d.total
+            }));
+          }
+        });
+        activeRuns.finish(TOOL_ID, 'Fingerprint complete');
+        notify.success('Fingerprint complete');
+      } catch (err) {
+        const msg = (err as Error).message ?? 'Fingerprint failed';
+        if (r.controller.signal.aborted) {
+          if (activeRuns.get(TOOL_ID)?.status === 'running') activeRuns.cancel(TOOL_ID);
+        } else {
+          activeRuns.fail(TOOL_ID, msg);
+        }
+      }
+    })();
   }
 
-  function stop() { controller?.abort(); running = false; }
+  function stop() { activeRuns.cancel(TOOL_ID); }
 </script>
 
 <svelte:head><title>Defense Fingerprinter · Cryptex</title></svelte:head>
