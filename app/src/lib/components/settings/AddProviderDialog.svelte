@@ -133,17 +133,23 @@
           verifying = false;
           return;
         }
-        const record: Extract<ProviderRecord, { id: 'openai-compat' }> = {
-          id: 'openai-compat',
-          instanceId: crypto.randomUUID(),
-          name: name.trim() || preset.name,
-          presetId: preset.id,
-          baseURL: baseURL.trim() || preset.baseURL,
-          apiKey: trimmed,
-          testModel: effectiveTestModel,
-          enabled: true
-        };
-        await openaiCompatAdapter(record).validateKey(trimmed, abortCtrl.signal);
+        // Local-server presets (Ollama, LM Studio, vLLM, Llama.cpp) don't require an
+        // API key and the localhost endpoint may not be running at save-time. Skip
+        // the upstream probe — the ProviderCard offers an explicit "Verify" button
+        // for the user to test the connection on demand.
+        if (preset.supportsAuthProbe) {
+          const record: Extract<ProviderRecord, { id: 'openai-compat' }> = {
+            id: 'openai-compat',
+            instanceId: crypto.randomUUID(),
+            name: name.trim() || preset.name,
+            presetId: preset.id,
+            baseURL: baseURL.trim() || preset.baseURL,
+            apiKey: trimmed,
+            testModel: effectiveTestModel,
+            enabled: true
+          };
+          await openaiCompatAdapter(record).validateKey(trimmed, abortCtrl.signal);
+        }
       }
       // Validation succeeded — build the record and persist to localStorage.
       const record = buildRecord();
@@ -173,9 +179,20 @@
   }
   function close() { reset(); onClose(); }
 
+  // Local-server presets (Ollama, LM Studio, vLLM, Llama.cpp) don't require an
+  // API key; their `supportsAuthProbe` flag is false. For those, allow Save with
+  // an empty key. Cloud providers (OpenRouter, Anthropic, all auth-probe presets)
+  // still require a non-empty key.
+  const currentPreset = $derived(
+    chosen === 'custom-preset' ? OPENAI_COMPAT_PRESETS.find((p) => p.id === chosenPresetId) : undefined
+  );
+  const keyRequired = $derived(
+    chosen === 'openrouter' || chosen === 'anthropic' ||
+    (chosen === 'custom-preset' && currentPreset?.supportsAuthProbe !== false)
+  );
   const saveDisabled = $derived(
     verifying ||
-    !apiKey.trim() ||
+    (keyRequired && !apiKey.trim()) ||
     (chosen === 'custom-preset' && chosenPresetId === 'custom' && !testModel.trim())
   );
 </script>
@@ -202,10 +219,17 @@
             <p class="px-3 py-1 text-xs text-muted-foreground italic">All direct providers already configured.</p>
           {/if}
 
-          <p class="mt-4 text-xs uppercase text-muted-foreground">OpenAI-compatible</p>
-          {#each OPENAI_COMPAT_PRESETS.filter((p) => p.id !== 'custom') as p (p.id)}
+          <p class="mt-4 text-xs uppercase text-muted-foreground">Cloud (OpenAI-compatible)</p>
+          {#each OPENAI_COMPAT_PRESETS.filter((p) => p.id !== 'custom' && p.supportsAuthProbe) as p (p.id)}
             <button type="button" onclick={() => pickPreset(p.id)} class="w-full rounded-md px-3 py-2 text-left hover:bg-white/5">{p.name}</button>
           {/each}
+
+          <p class="mt-4 text-xs uppercase text-muted-foreground">Local servers</p>
+          {#each OPENAI_COMPAT_PRESETS.filter((p) => p.id !== 'custom' && !p.supportsAuthProbe) as p (p.id)}
+            <button type="button" onclick={() => pickPreset(p.id)} class="w-full rounded-md px-3 py-2 text-left hover:bg-white/5">{p.name}</button>
+          {/each}
+
+          <p class="mt-4 text-xs uppercase text-muted-foreground">Other</p>
           <button type="button" onclick={() => pickPreset('custom')} class="w-full rounded-md px-3 py-2 text-left hover:bg-white/5">Custom endpoint</button>
         </div>
         <p class="mt-4 text-xs text-muted-foreground">
@@ -250,6 +274,11 @@
           </button>
         </div>
       {:else if chosen === 'custom-preset'}
+        {#if currentPreset && !currentPreset.supportsAuthProbe && currentPreset.id !== 'custom'}
+          <p class="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+            Local server preset. Make sure {currentPreset.name} is running and reachable at the base URL below before chatting. The API key is optional for local servers.
+          </p>
+        {/if}
         <label class="block text-sm">
           Name
           <input type="text" bind:value={name} class="mt-1 w-full rounded-md border border-white/10 bg-black/30 px-3 py-1.5 text-sm" />
@@ -259,7 +288,7 @@
           <input type="url" bind:value={baseURL} class="mt-1 w-full rounded-md border border-white/10 bg-black/30 px-3 py-1.5 font-mono text-xs" />
         </label>
         <label class="block text-sm">
-          API key
+          API key {#if currentPreset && !currentPreset.supportsAuthProbe && currentPreset.id !== 'custom'}<span class="text-muted-foreground">(optional for local servers)</span>{/if}
           <input type="password" bind:value={apiKey} class="mt-1 w-full rounded-md border border-white/10 bg-black/30 px-3 py-1.5 font-mono text-xs" />
         </label>
         {#if chosenPresetId === 'custom'}

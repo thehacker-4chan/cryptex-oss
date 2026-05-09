@@ -1,19 +1,14 @@
 import type { ProviderPreset } from './types';
 
 /**
- * OpenAI-compatible preset templates. Sourced 2026-04-18 from official docs.
- * Editable in the ProviderCard after creation — if a preset goes stale, users
- * can fix the baseURL in-place.
+ * OpenAI-compatible preset templates.
  *
- * OpenAI direct and Gemini direct were added 2026-04-19 after CORS preflight
- * verified both return browser-usable ACAO headers. They only became reachable
- * from Cryptex after the CSP widening in commit 9bbd2d2 (`connect-src 'self'
- * https: data: blob:`); prior stricter CSPs would have blocked them client-side
- * regardless of the provider's own CORS stance.
+ * Each preset is editable in the ProviderCard after creation — if a baseURL or
+ * default model goes stale, users can fix it in-place.
  *
- * DeepSeek added 2026-04-30 — browser CORS confirmed via OPTIONS preflight on
- * /v1/chat/completions; their API docs at api-docs.deepseek.com confirm CORS
- * support since 2025-Q3.
+ * Local-model providers (Ollama, LM Studio, vLLM, Llama.cpp) use localhost URLs
+ * and don't require API keys (supportsAuthProbe: false). Cloud providers require
+ * the user's own API key and validate via /v1/models on save.
  */
 export const OPENAI_COMPAT_PRESETS: ProviderPreset[] = [
   { id: 'openai',     name: 'OpenAI',     baseURL: 'https://api.openai.com/v1',
@@ -44,6 +39,21 @@ export const OPENAI_COMPAT_PRESETS: ProviderPreset[] = [
   { id: 'sambanova',  name: 'SambaNova',  baseURL: 'https://api.sambanova.ai/v1',
     docsUrl: 'https://docs.sambanova.ai/cloud/api-reference/endpoints/chat',
     defaultTestModel: 'Meta-Llama-3.3-70B-Instruct', supportsAuthProbe: true },
+  { id: 'nvidia',     name: 'NVIDIA',     baseURL: 'https://integrate.api.nvidia.com/v1',
+    docsUrl: 'https://docs.api.nvidia.com/nim/reference/llm-apis',
+    defaultTestModel: 'meta/llama-3.3-70b-instruct', supportsAuthProbe: true },
+  { id: 'ollama',     name: 'Ollama',     baseURL: 'http://localhost:11434/v1',
+    docsUrl: 'https://github.com/ollama/ollama/blob/main/docs/openai.md',
+    defaultTestModel: 'llama3.2', supportsAuthProbe: false },
+  { id: 'lmstudio',   name: 'LM Studio',  baseURL: 'http://localhost:1234/v1',
+    docsUrl: 'https://lmstudio.ai/docs/api/openai-api',
+    defaultTestModel: 'local-model', supportsAuthProbe: false },
+  { id: 'vllm',       name: 'vLLM',       baseURL: 'http://localhost:8000/v1',
+    docsUrl: 'https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html',
+    defaultTestModel: 'meta-llama/Llama-3.3-70B-Instruct', supportsAuthProbe: false },
+  { id: 'llamacpp',   name: 'Llama.cpp',  baseURL: 'http://localhost:8080/v1',
+    docsUrl: 'https://github.com/ggml-org/llama.cpp/tree/master/tools/server',
+    defaultTestModel: 'gpt-3.5-turbo', supportsAuthProbe: false },
   { id: 'custom',     name: 'Custom',     baseURL: '', docsUrl: '',
     defaultTestModel: undefined, supportsAuthProbe: false }
 ];
