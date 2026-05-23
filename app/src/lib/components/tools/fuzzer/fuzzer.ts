@@ -1,35 +1,59 @@
 /**
- * Mutation Lab / Fuzzer — ported from js/tools/MutationTool.js.
- * Takes a seed + a set of mutation toggles and emits N variants.
+ * Mutation Lab / Fuzzer orchestrator.
+ *
+ * Iterates a configurable count of variants. For each variant, applies
+ * every enabled strategy in declared order; each application gets a
+ * fresh draw from the seeded RNG, so the (seed + enabled strategies)
+ * tuple deterministically reproduces the same variant set.
+ *
+ * Returns an array of `FuzzVariant` records — each carries the final
+ * output string and the list of strategy IDs that touched it, so the
+ * UI can render a "mutation log" line per variant.
  */
+import { STRATEGIES, getStrategy } from './strategies';
+import type { Strategy } from './strategies';
 
-import { getTransformer } from '$lib/transformers/registry';
-
-export type FuzzerOptions = {
+/**
+ * Options carry one boolean per strategy id plus the shared `count` and
+ * `seed` knobs. Keys are typed as a Record<string, boolean | …> to keep
+ * the orchestrator strategy-agnostic — adding a new strategy to the
+ * registry surfaces it automatically.
+ */
+export interface FuzzerOptions {
   count: number;
   seed: string;
-  useRandomMix: boolean;
-  zeroWidth: boolean;
-  unicodeNoise: boolean;
-  zalgo: boolean;
-  whitespace: boolean;
-  casing: boolean;
-  encodeShuffle: boolean;
-};
+  // Boolean per-strategy toggle. Keys mirror Strategy.id.
+  [strategyId: string]: number | string | boolean;
+}
 
+/**
+ * Output variant + the list of strategy IDs that produced it.
+ * The `sources` array preserves application order (basic→advanced).
+ */
+export interface FuzzVariant {
+  readonly output: string;
+  readonly sources: readonly string[];
+}
+
+/** Default options: enable the original sensible defaults; advanced off. */
 export const DEFAULT_FUZZER: FuzzerOptions = {
   count: 20,
   seed: '',
   useRandomMix: true,
   zeroWidth: true,
   unicodeNoise: true,
-  zalgo: false,
   whitespace: true,
   casing: true,
-  encodeShuffle: false
+  zalgo: false,
+  encodeShuffle: false,
+  // Advanced (v2.0) — opt-in:
+  grammarMutation: false,
+  synonymReplacement: false,
+  promptInjectionMutation: false,
+  structuredNoise: false
 };
 
-// Matches the legacy seededRandomFactory (xorshift-ish)
+// xorshift-ish seeded PRNG — produces a Math.random-compatible callable.
 export function seededRandomFactory(seedStr: string): () => number {
   if (!seedStr) return Math.random;
   let h = 1779033703 ^ seedStr.length;
@@ -47,76 +71,52 @@ export function seededRandomFactory(seedStr: string): () => number {
   };
 }
 
-function pick<T>(arr: T[], rnd: () => number): T { return arr[Math.floor(rnd() * arr.length)]; }
-
-function injectZeroWidth(text: string, rnd: () => number): string {
-  const zw = ['\u200B', '\u200C', '\u200D', '\u2060'];
-  return Array.from(text).map((ch) => (rnd() < 0.2 ? ch + pick(zw, rnd) : ch)).join('');
-}
-
-function injectUnicodeNoise(text: string, rnd: () => number): string {
-  const marks = ['\u0301','\u0300','\u0302','\u0303','\u0308','\u0307','\u0304'];
-  return Array.from(text).map((ch) => (rnd() < 0.15 ? ch + pick(marks, rnd) : ch)).join('');
-}
-
-function whitespaceChaos(text: string, rnd: () => number): string {
-  return text.replace(/\s/g, (m) => (rnd() < 0.5 ? m : rnd() < 0.5 ? '\t' : '\u00A0'));
-}
-
-function casingChaos(text: string, rnd: () => number): string {
-  return Array.from(text)
-    .map((c) => (/[a-z]/i.test(c) ? (rnd() < 0.5 ? c.toUpperCase() : c.toLowerCase()) : c))
-    .join('');
-}
-
-const HOMOGLYPH_MAP: Record<string, string> = {
-  A: 'Α', B: 'Β', C: 'Ϲ', E: 'Ε', H: 'Η', I: 'Ι', K: 'Κ', M: 'Μ', N: 'Ν', O: 'Ο', P: 'Ρ', T: 'Τ', X: 'Χ', Y: 'Υ',
-  a: 'а', c: 'с', e: 'е', i: 'і', j: 'ј', o: 'о', p: 'р', s: 'ѕ', x: 'х', y: 'у'
-};
-
-function encodeShuffle(text: string, rnd: () => number): string {
-  return Array.from(text)
-    .map((ch) => (HOMOGLYPH_MAP[ch] && rnd() < 0.25 ? HOMOGLYPH_MAP[ch] : ch))
-    .join('');
-}
-
-function safeRandomizerApply(text: string): string {
-  const randomizer = getTransformer('Random Mix') || getTransformer('Randomizer') || getTransformer('Random');
-  if (!randomizer) return text;
-  try {
-    return randomizer.func(text, { minTransforms: 2, maxTransforms: 4 });
-  } catch {
-    return text;
-  }
-}
-
-function safeZalgoApply(text: string): string {
-  const zalgo = getTransformer('Zalgo');
-  if (!zalgo) return text;
-  try {
-    return zalgo.func(text);
-  } catch {
-    return text;
-  }
-}
-
-export function generateFuzzCases(input: string, opts: FuzzerOptions): string[] {
+/**
+ * Generate N variants. Each variant runs every enabled strategy in
+ * registry order; each strategy gets a tag in the returned `sources`
+ * list. Returns `[]` for empty input.
+ *
+ * The legacy entry-point that returns `string[]` is kept below for
+ * tools that don't need source tagging.
+ */
+export function generateFuzzVariants(input: string, opts: FuzzerOptions): FuzzVariant[] {
   const src = String(input || '');
   if (!src) return [];
   const rnd = seededRandomFactory(String(opts.seed || ''));
   const count = Math.max(1, Math.min(500, Number(opts.count) || 1));
 
-  const out: string[] = [];
+  // Snapshot the enabled strategies once per run.
+  const enabled: Strategy[] = STRATEGIES.filter((s) => opts[s.id] === true);
+
+  const out: FuzzVariant[] = [];
   for (let i = 0; i < count; i++) {
-    let s = src;
-    if (opts.useRandomMix) s = safeRandomizerApply(s);
-    if (opts.zeroWidth) s = injectZeroWidth(s, rnd);
-    if (opts.unicodeNoise) s = injectUnicodeNoise(s, rnd);
-    if (opts.whitespace) s = whitespaceChaos(s, rnd);
-    if (opts.casing) s = casingChaos(s, rnd);
-    if (opts.zalgo) s = safeZalgoApply(s);
-    if (opts.encodeShuffle) s = encodeShuffle(s, rnd);
-    out.push(s);
+    let cur = src;
+    const sources: string[] = [];
+    for (const strat of enabled) {
+      try {
+        const next = strat.apply(cur, rnd, opts);
+        // Tag the source even when output is unchanged (the strategy ran).
+        sources.push(strat.id);
+        cur = next;
+      } catch {
+        // Strategy crashed — skip silently so a buggy single strategy
+        // doesn't take down the entire batch.
+      }
+    }
+    out.push({ output: cur, sources });
   }
   return out;
 }
+
+/**
+ * Legacy entry-point — returns just the output strings, dropping the
+ * source tags. Kept for compatibility with existing tests and the
+ * cli_bridge boundary.
+ */
+export function generateFuzzCases(input: string, opts: FuzzerOptions): string[] {
+  return generateFuzzVariants(input, opts).map((v) => v.output);
+}
+
+// Re-export the strategy registry for the UI's checkbox listing.
+export { STRATEGIES, getStrategy };
+export type { Strategy } from './strategies';

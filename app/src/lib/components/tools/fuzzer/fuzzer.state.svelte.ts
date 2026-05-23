@@ -1,11 +1,12 @@
 /**
  * Module-level state for the Fuzzer (Mutation Lab) tool. Survives tab switches.
  */
-import { DEFAULT_FUZZER, type FuzzerOptions } from './fuzzer';
+import { DEFAULT_FUZZER, type FuzzerOptions, type FuzzVariant } from './fuzzer';
 
 let input = $state('');
 let opts = $state<FuzzerOptions>({ ...DEFAULT_FUZZER });
-let outputs = $state<string[]>([]);
+let variants = $state<FuzzVariant[]>([]);
+let showMutationLog = $state(false);
 
 export const fuzzerState = {
   get input() { return input; },
@@ -14,12 +15,16 @@ export const fuzzerState = {
   get opts() { return opts; },
   set opts(v: FuzzerOptions) { opts = v; },
 
-  get outputs() { return outputs; },
-  set outputs(v: string[]) { outputs = v; },
+  get variants() { return variants; },
+  set variants(v: FuzzVariant[]) { variants = v; },
+
+  get showMutationLog() { return showMutationLog; },
+  set showMutationLog(v: boolean) { showMutationLog = v; },
 
   reset() {
     input = '';
     opts = { ...DEFAULT_FUZZER };
-    outputs = [];
+    variants = [];
+    showMutationLog = false;
   }
 };
