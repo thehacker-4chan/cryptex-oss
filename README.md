@@ -186,6 +186,8 @@ uv run cryptex-cli list
 
 MIT. See [`LICENSE`](LICENSE).
 
+Cryptex OSS bundles small red-team corpora (glitch tokens, adversarial suffixes, indirect-injection patterns, tool-result lab, emoji carriers, fuzzer seeds, PromptCraft chains, and a tiny WordNet subset) sourced from openly-licensed papers, community write-ups, and public-domain Unicode references. Each bundled item is licensed MIT, CC-BY-4.0, or CC0 / public-domain. Full per-source attribution and provenance lives in [`app/src/lib/vault/LICENSES.md`](app/src/lib/vault/LICENSES.md). No GPL / AGPL / CC-BY-SA / CC-BY-NC material is bundled.
+
 ---
 
 ## Credits

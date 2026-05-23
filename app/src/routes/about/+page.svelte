@@ -210,6 +210,29 @@
     </div>
   </section>
 
+  <!-- ===== Licensing ===== -->
+  <section class="rounded-2xl border border-border/60 bg-card/40 p-5 shadow-glass">
+    <div class="grid gap-4 lg:grid-cols-[auto_1fr] lg:items-center">
+      <div class="flex h-14 w-14 items-center justify-center rounded-xl border border-primary/30 bg-primary/10 text-primary">
+        <Cpu size={22} />
+      </div>
+      <div class="space-y-1.5">
+        <h2 class="font-serif text-lg tracking-tight">Licensing</h2>
+        <p class="text-[13px] leading-relaxed text-muted-foreground">
+          Cryptex OSS is MIT-licensed. All bundled red-team corpora (glitch tokens, adversarial suffixes,
+          indirect-injection patterns, tool-result lab, emoji carriers, fuzzer seeds, PromptCraft chains)
+          are MIT, CC-BY-4.0, or CC0 / public-domain. Full provenance and per-source attribution lives in
+          <a
+            href="https://github.com/m4xx101/cryptex-oss/blob/main/app/src/lib/vault/LICENSES.md"
+            target="_blank"
+            rel="noopener"
+            class="font-medium text-primary underline-offset-2 hover:underline"
+          >app/src/lib/vault/LICENSES.md</a>.
+        </p>
+      </div>
+    </div>
+  </section>
+
   <!-- ===== CTA ===== -->
   <section class="overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent p-5 shadow-primary sm:p-7">
     <div class="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
