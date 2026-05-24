@@ -1,19 +1,19 @@
 <!--
-  Hero + screenshot images are intentional placeholders.
-  Drop these files when ready and the README renders them:
-    docs/img/hero.png                       1280x640 banner
+  Hero image lives at docs/Tool-bar.png (and docs/Tool-bar-dark.png for
+  the light-mode swap). Screenshot triplet placeholders below render
+  gracefully when the asset files do not exist; GitHub silently hides
+  broken <img> inside centered <p>. Drop these to replace the placeholders:
     docs/img/screenshot-transforms.png      first feature shot
     docs/img/screenshot-promptcraft.png     second feature shot
     docs/img/screenshot-harmbench.png       third feature shot
-  GitHub silently hides broken images inside centered <p>, so the
-  README looks fine even before the assets land.
 -->
 <p align="center">
-  <img src="docs/img/hero.png" alt="Cryptex OSS" width="640">
+  <picture>
+    <source media="(prefers-color-scheme: light)" srcset="docs/Tool-bar-dark.png">
+    <img src="docs/Tool-bar.png" alt="Cryptex OSS" width="100%">
+  </picture>
 </p>
-
 <h1 align="center">Cryptex OSS</h1>
-
 <p align="center">
   <strong>Open-source LLM red-team lab.</strong><br>
   159 transforms, 25 tool surfaces, BYOK gateway. Runs in your browser.
