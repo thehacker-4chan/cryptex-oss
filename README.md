@@ -4,7 +4,7 @@
   file (GitHub silently hides broken images in the centered <p> wrapper).
 -->
 <p align="center">
-  <img src="docs/Tool-bar.png" alt="Cryptex OSS" width="640">
+  <img src="docs/Tool-bar.png" alt="Cryptex OSS" width="900">
 </p>
 
 <h1 align="center">Cryptex OSS</h1>
