@@ -117,7 +117,8 @@ npm run dev          # http://localhost:5173 with hot reload
 npm run build        # static bundle in app/build/
 ```
 
-Prereqs: Node 20+, npm. Optional: [`uv`](https://docs.astral.sh/uv/) for the Python CLI.
+Prereqs: Node 20.19+ or 22.12+ (not plain “Node 20”), npm. Install deps in app/, then npm run dev.
+Optional: [`uv`](https://docs.astral.sh/uv/) for the Python CLI.
 </details>
 
 <details>
