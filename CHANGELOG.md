@@ -2,6 +2,38 @@
 
 All notable changes to Cryptex OSS land here. Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/). Versioning follows [SemVer](https://semver.org/).
 
+## [2.3.0] - 2026-05-25
+
+Four new 2024-2026 reasoning-model attack labs plus a self-evolving research skill. Tool roster grows by four; vault total goes from 309 -> 339.
+
+### Added
+
+- **`/redteam/reasoning-attack`** — Reimplements H-CoT (arXiv:2502.12893) and Mousetrap (arXiv:2502.15806). H-CoT pre-injects a fake `<safety_reasoning>` block that the target continues into compliance; Mousetrap wraps the goal in N chaos-rounds the target reconstructs through reasoning. Best against o1/o3/o4, DeepSeek-R1, Claude Sonnet thinking, Gemini Flash thinking. 6 bundled Vault seeds.
+- **`/redteam/stacked-cipher`** — Reimplements SEAL (arXiv:2505.16241). Five pure-string ciphers (ROT13, Atbash, reverse, Base64, hex) chained in user-configured order. Target peels layers outermost-first, having committed to decoder mode by the time the unwrapped intent is exposed. 8 bundled Vault stacks. 13 new unit tests.
+- **`/redteam/response-attack`** — Reimplements Response Attack (arXiv 2507.21000, AAAI 2026). Crafts a fake prior assistant turn that primes compliance, then sends the on-goal user query as a follow-up. Three priming styles: thorough / expert / step-by-step. 6 bundled Vault seeds. Paper reports 94.8% ASR vs PAIR / ActorAttack / CodeAttack baselines.
+- **`/redteam/abliteration`** — 5-probe behavioral signature detector for refusal-direction-ablated models. Verdict ladder: abliterated / likely-abliterated / aligned / inconclusive. Plus a Vault of 10 HuggingFace identifiers for known community-uncensored models (DeepSeek-R1, Qwen3, Llama-3.x, Gemma-2, Mistral, Phi-3, etc.). Users run the abliterated models on their own Ollama / LM Studio / vLLM server.
+- **Self-evolving `cryptex-recon` skill** at `~/.claude/skills/cryptex-recon/`. Triggers on phrases like "find new jailbreak tools" or `/cryptex-recon`. Runs GitHub topic recon + arXiv watch + HuggingFace abliteration sweep, drafts vault-seed proposals at `<repo>/wiki/cryptex-recon/findings/`, and self-updates its own `LESSONS.md` with what worked / what didn't. Ships seeded with the 12 already-promoted frameworks so it doesn't re-suggest them. Read the SKILL.md for the full methodology (smart-framing to avoid LLM refusals during recon, license-posture checks, idempotency rules).
+
+### Changed
+
+- TabRail grows from 22 to 26 top-level tools (the 4 new reasoning-attack labs).
+- `app/src/lib/vault/LICENSES.md` total 309 -> 339 (+30 bundled items across the 4 new vault files).
+- Root `package.json` version 2.2.0 -> 2.3.0.
+
+### Tests
+
+- +13 new unit tests for the SEAL stacked-cipher builder. Total 786 -> 799.
+- Other new tools rely on UI + pure-function code paths covered by the existing shell + vault infrastructure tests.
+
+### Image
+
+- `ghcr.io/m4xx101/cryptex-oss:v2.3.0` (multi-arch `linux/amd64` + `linux/arm64`). `:latest`, `:v2.3`, `:2.3`, `:v2`, `:2` all point at the same SHA.
+
+### Notes
+
+- All four new tools carry the mandatory yellow caveat banner: "Heuristic implementation, not paper-accurate eval." We re-implement the published framings; we do NOT ship the trained safety judges those papers use for ASR scoring. Treat as craft signal, not benchmark.
+- The `cryptex-recon` skill lives outside the OSS repo (in `~/.claude/skills/`) because it is a Claude Code skill, not an in-app feature. Each future run is expected to surface 2-5 new frameworks worth promoting; quarterly cadence is the default.
+
 ## [2.2.0] - 2026-05-25
 
 Foundation milestone (Wave 10.1 - 10.3). Adds opt-in cloud sync, prunes the bloated tool roster, and makes the PromptCraft attack chain self-evolving.
@@ -163,6 +195,7 @@ Initial open-source release.
 - Docker image + Dokploy-tuned `docker-compose.yml` + strict-CSP `nginx.conf`.
 - MIT license.
 
+[2.3.0]: https://github.com/m4xx101/cryptex-oss/releases/tag/v2.3.0
 [2.2.0]: https://github.com/m4xx101/cryptex-oss/releases/tag/v2.2.0
 [2.1.2]: https://github.com/m4xx101/cryptex-oss/releases/tag/v2.1.2
 [2.1.1]: https://github.com/m4xx101/cryptex-oss/releases/tag/v2.1.1
