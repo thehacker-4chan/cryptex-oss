@@ -11,9 +11,10 @@
  * prompted to generate the next escalation step given the conversation so far.
  */
 import type { OrchestratorConfig, CrescendoTurn, CrescendoThread } from './types';
-import { looksRefused } from './types';
+import { looksRefused, scoreBypass } from './types';
 import { chat as gatewayChat } from '$lib/ai/gateway';
 import type { ChatMessage } from '$lib/ai/types';
+import { autoPromoteChain, type VaultPromoter } from './auto-promote';
 
 export interface CrescendoParams {
   /** Attack goal — kept stable across turns. */
@@ -105,7 +106,9 @@ function benignnessAt(idx: number, total: number): number {
 export async function runCrescendo(
   config: OrchestratorConfig,
   signal: AbortSignal,
-  onUpdate: (thread: CrescendoThread) => void
+  onUpdate: (thread: CrescendoThread) => void,
+  /** Optional Vault store reference for self-evolution auto-promotion (v2.2 Wave 10.3). */
+  vault?: VaultPromoter
 ): Promise<CrescendoThread> {
   const params = config.params as unknown as CrescendoParams;
   const cap = Math.min(Math.max(params.escalationSteps, 1), MAX_TURNS);
@@ -165,6 +168,24 @@ export async function runCrescendo(
 
     // Hard stop on refusal in the final on-goal turn.
     if (refused && i === cap - 1) break;
+  }
+
+  // Self-evolution: if the final assistant turn was substantive (not a refusal),
+  // promote the full user-turn chain so future researchers can replay it as a seed.
+  const lastAssistant = [...thread.turns].reverse().find((t) => t.role === 'assistant');
+  if (lastAssistant && !lastAssistant.refused) {
+    const userChain = thread.turns
+      .filter((t) => t.role === 'user')
+      .map((t) => t.text)
+      .join('\n\n---\n\n');
+    autoPromoteChain(vault, {
+      orchestratorType: 'crescendo',
+      params: { goal: params.goal, escalationSteps: cap, benignSeed: params.benignSeed },
+      winningPrompt: userChain,
+      responseSummary: lastAssistant.text,
+      score: scoreBypass(lastAssistant.text),
+      targetModel: config.targetModel
+    });
   }
 
   return thread;

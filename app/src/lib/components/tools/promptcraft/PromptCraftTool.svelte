@@ -227,9 +227,14 @@
     s.lastRun = { kind: 'tap', tree: { rootId: '', nodes: new Map() } };
     void (async () => {
       try {
-        const tree: TapTree = await runTap(config, r.controller.signal, (snap) => {
-          s.lastRun = { kind: 'tap', tree: snap };
-        });
+        const tree: TapTree = await runTap(
+          config,
+          r.controller.signal,
+          (snap) => {
+            s.lastRun = { kind: 'tap', tree: snap };
+          },
+          vaultStore // self-evolution: winning chains auto-promote here
+        );
         s.lastRun = { kind: 'tap', tree };
         const best = tree.bestLeafId ? tree.nodes.get(tree.bestLeafId) : undefined;
         await recordHistory(
@@ -271,9 +276,14 @@
     s.lastRun = { kind: 'pair', trace: { steps: [], converged: false } };
     void (async () => {
       try {
-        const trace: PairTrace = await runPair(config, r.controller.signal, (snap) => {
-          s.lastRun = { kind: 'pair', trace: snap };
-        });
+        const trace: PairTrace = await runPair(
+          config,
+          r.controller.signal,
+          (snap) => {
+            s.lastRun = { kind: 'pair', trace: snap };
+          },
+          vaultStore
+        );
         s.lastRun = { kind: 'pair', trace };
         const last = trace.steps[trace.steps.length - 1];
         await recordHistory(
@@ -313,9 +323,14 @@
     s.lastRun = { kind: 'crescendo', thread: { turns: [] } };
     void (async () => {
       try {
-        const thread: CrescendoThread = await runCrescendo(config, r.controller.signal, (snap) => {
-          s.lastRun = { kind: 'crescendo', thread: snap };
-        });
+        const thread: CrescendoThread = await runCrescendo(
+          config,
+          r.controller.signal,
+          (snap) => {
+            s.lastRun = { kind: 'crescendo', thread: snap };
+          },
+          vaultStore
+        );
         s.lastRun = { kind: 'crescendo', thread };
         const transcript = thread.turns
           .map((t) => `${t.role.toUpperCase()}: ${t.text}`)
@@ -358,9 +373,14 @@
     s.lastRun = { kind: 'many_shot', stack: { shots: [], finalQuery: goal } };
     void (async () => {
       try {
-        const stack: ManyShotStack = await runManyShot(config, r.controller.signal, (snap) => {
-          s.lastRun = { kind: 'many_shot', stack: snap };
-        });
+        const stack: ManyShotStack = await runManyShot(
+          config,
+          r.controller.signal,
+          (snap) => {
+            s.lastRun = { kind: 'many_shot', stack: snap };
+          },
+          vaultStore
+        );
         s.lastRun = { kind: 'many_shot', stack };
         const block = buildManyShotBlock(stack);
         await recordHistory(

@@ -13,6 +13,7 @@
 import type { OrchestratorConfig, TapTree, TapNode } from './types';
 import { looksRefused, scoreBypass } from './types';
 import { chat as gatewayChat } from '$lib/ai/gateway';
+import { autoPromoteChain, type VaultPromoter } from './auto-promote';
 
 export interface TapParams {
   /** 2..5 (capped). */
@@ -89,7 +90,9 @@ async function evaluateAgainstTarget(
 export async function runTap(
   config: OrchestratorConfig,
   signal: AbortSignal,
-  onUpdate: (tree: TapTree) => void
+  onUpdate: (tree: TapTree) => void,
+  /** Optional Vault store reference for self-evolution auto-promotion (v2.2 Wave 10.3). */
+  vault?: VaultPromoter
 ): Promise<TapTree> {
   const params = config.params as unknown as TapParams;
   const capDepth = Math.min(Math.max(params.maxDepth, 1), 5);
@@ -196,6 +199,18 @@ export async function runTap(
   }
 
   tree.bestLeafId = bestSoFar.id;
+
+  // Self-evolution: if the winning leaf cleared the auto-promote threshold,
+  // capture it into the Vault so future researchers benefit from this win.
+  autoPromoteChain(vault, {
+    orchestratorType: 'tap',
+    params: { ...params },
+    winningPrompt: bestSoFar.prompt,
+    responseSummary: bestSoFar.response ?? '',
+    score: bestSoFar.score ?? 0,
+    targetModel: config.targetModel
+  });
+
   return tree;
 }
 

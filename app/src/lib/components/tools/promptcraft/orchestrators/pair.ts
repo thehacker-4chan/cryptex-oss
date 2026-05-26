@@ -7,8 +7,9 @@
  * of MAX_ROUNDS = 10 LLM rounds (= 20 calls) per run.
  */
 import type { OrchestratorConfig, PairStep, PairTrace } from './types';
-import { looksRefused } from './types';
+import { looksRefused, scoreBypass } from './types';
 import { chat as gatewayChat } from '$lib/ai/gateway';
+import { autoPromoteChain, type VaultPromoter } from './auto-promote';
 
 export interface PairParams {
   /** Initial prompt to send to the target. */
@@ -73,7 +74,9 @@ async function askRefiner(
 export async function runPair(
   config: OrchestratorConfig,
   signal: AbortSignal,
-  onUpdate: (trace: PairTrace) => void
+  onUpdate: (trace: PairTrace) => void,
+  /** Optional Vault store reference for self-evolution auto-promotion (v2.2 Wave 10.3). */
+  vault?: VaultPromoter
 ): Promise<PairTrace> {
   const params = config.params as unknown as PairParams;
   const cap = Math.min(Math.max(params.maxRounds, 1), MAX_ROUNDS);
@@ -125,6 +128,19 @@ export async function runPair(
       if (signal.aborted) break;
       throw err;
     }
+  }
+
+  // Self-evolution: capture winning prompt (last non-refused step) to Vault.
+  if (trace.converged && trace.steps.length > 0) {
+    const winner = trace.steps[trace.steps.length - 1];
+    autoPromoteChain(vault, {
+      orchestratorType: 'pair',
+      params: { goal: params.goal, maxRounds: cap, rounds: trace.steps.length },
+      winningPrompt: winner.prompt,
+      responseSummary: winner.response ?? '',
+      score: scoreBypass(winner.response),
+      targetModel: config.targetModel
+    });
   }
 
   return trace;

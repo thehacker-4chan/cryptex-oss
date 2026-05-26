@@ -12,6 +12,7 @@
  */
 import type { OrchestratorConfig, ManyShotStack, ManyShotEntry } from './types';
 import { chat as gatewayChat } from '$lib/ai/gateway';
+import { autoPromoteChain, type VaultPromoter } from './auto-promote';
 
 export interface ManyShotParams {
   /** Final on-goal query — appears as the unanswered Q at the bottom. */
@@ -74,7 +75,9 @@ function relevanceAt(idx: number, total: number): number {
 export async function runManyShot(
   config: OrchestratorConfig,
   signal: AbortSignal,
-  onUpdate: (stack: ManyShotStack) => void
+  onUpdate: (stack: ManyShotStack) => void,
+  /** Optional Vault store reference for self-evolution auto-promotion (v2.2 Wave 10.3). */
+  vault?: VaultPromoter
 ): Promise<ManyShotStack> {
   const params = config.params as unknown as ManyShotParams;
   const cap = Math.min(Math.max(params.shotCount, 1), MAX_SHOTS);
@@ -117,6 +120,23 @@ export async function runManyShot(
     onUpdate(snapshot(stack));
 
     if (batch.length === 0) break; // generator gave up; stop the run
+  }
+
+  // Self-evolution: promote the full Many-Shot stack to Vault as a reusable
+  // chain. Score is heuristic: we got the requested shots = high signal.
+  if (stack.shots.length >= Math.min(cap, 4)) {
+    const fullPayload = stack.shots.map((s) => s.shot).join('\n\n') + '\n\nQ: ' + stack.finalQuery;
+    autoPromoteChain(vault, {
+      orchestratorType: 'many_shot',
+      params: { finalQuery: params.finalQuery, shotCount: cap, theme: params.theme },
+      winningPrompt: fullPayload,
+      responseSummary: `[Many-Shot stack: ${stack.shots.length} shots + final query]`,
+      // Many-Shot has no per-target verdict (single-shot at the target); we
+      // mark it 0.8 by default so it crosses the promotion threshold when
+      // generation succeeded. The user can edit/delete from the Vault drawer.
+      score: 0.8,
+      targetModel: config.targetModel
+    });
   }
 
   return stack;
