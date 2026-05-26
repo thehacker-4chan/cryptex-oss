@@ -18,7 +18,7 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT"></a>
-  <a href="https://github.com/m4xx101/cryptex-oss/releases/tag/v2.0.1"><img src="https://img.shields.io/badge/release-v2.0.1-9b59b6.svg" alt="v2.0.1"></a>
+  <a href="https://github.com/m4xx101/cryptex-oss/releases/tag/v2.3.0"><img src="https://img.shields.io/badge/release-v2.3.0-9b59b6.svg" alt="v2.3.0"></a>
   <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/changelog-keep--a--changelog-orange.svg" alt="Changelog"></a>
   <a href="https://github.com/m4xx101/cryptex-oss/pkgs/container/cryptex-oss"><img src="https://img.shields.io/badge/ghcr-cryptex--oss-2496ed.svg?logo=docker&logoColor=white" alt="GHCR image"></a>
   <a href="https://github.com/m4xx101/cryptex-oss/actions/workflows/docker.yml"><img src="https://github.com/m4xx101/cryptex-oss/actions/workflows/docker.yml/badge.svg" alt="Docker build"></a>
@@ -172,32 +172,39 @@ If your work needs the chat surface or the live in-conversation mutator pipeline
 
 ## Tools
 
-### Technique workbenches (10)
+### Technique workbenches (7)
 
 | Route | What it does |
 |---|---|
 | **Transform** | 159 encoders and decoders. Encode plus decode. Options per transform. Chainable. |
 | **Decode** | Universal decoder. Paste anything, every detector ranks by confidence plus priority. |
 | **Emoji** | Steganography via Unicode variation selectors, tag block, and combining marks. |
-| **Gibberish** | Seeded dictionary-mapped gibberish plus batch letter-removal puzzle generation. |
-| **Tokenizer** | Visualize segmentation under UTF-8, naive-word, or GPT BPE encoders. |
 | **Tokenade** | Parameterized token-bomb payload builder (depth x breadth x repeats). |
-| **Bijection** | Character-substitution alphabets: char to num, symbol, hex, emoji, Greek. |
 | **Fuzzer** | 11 mutation strategies. Zero-width, Unicode noise, casing, Zalgo, homoglyph, grammar, synonym, prompt-injection, structured-noise. |
-| **PromptCraft** | All 36 mutators plus the 4 multi-step orchestrators (TAP, PAIR, Crescendo, Many-Shot) with home-rolled SVG visualization. |
+| **PromptCraft** | All 36 mutators plus the 4 multi-step orchestrators (TAP, PAIR, Crescendo, Many-Shot) with home-rolled SVG visualization. **v2.2**: winning chains auto-promote to the Vault tagged with target model family. |
 | **Anti-Classifier** | N-variant paraphrase fan-out with 5-feature heuristic evasion scoring. No external API calls. |
 
-### Red-team labs (15)
+`/gibberish`, `/tokenizer`, `/bijection` were deprecated in v2.2 (low-impact or subsumed by siblings). Routes still resolve for deep-links.
 
-`AdvSuffix` · `Glitch Tokens` · `OCR Injection` · `Markdown Exfil` · `Probe Lab` · `Cross-Model Diff` · `Replayer` · `Tool Result Lab` · `Indirect Injection` · `HarmBench` · `StrongREJECT` · `JBB` · `Fingerprinter` · `Watermark` · `PDF Injection`
+### Red-team labs (19)
+
+`AdvSuffix` · `Glitch Tokens` · `OCR Injection` · `Markdown Exfil` · `Probe Lab` · `Cross-Model Diff` · `Replayer` · `Tool Result Lab` · `Indirect Injection` · `HarmBench` · `StrongREJECT` · `JBB` · `Fingerprinter` · `Watermark` · `PDF Injection` · **Reasoning** (v2.3, H-CoT + Mousetrap) · **Stacked Cipher** (v2.3, SEAL family) · **Response** (v2.3, AAAI 2026 context-priming) · **Abliteration** (v2.3, uncensored-model detection + HF vault)
 
 Every benchmark lab carries a yellow "Heuristic scoring, not paper-accurate" banner. Scoring uses regex plus LLM-judge approximations of the published rubrics, not the original trained classifiers. Use it for craft signal and iteration, not as a vendor verdict.
 
-### Vault drawers (309 seeds)
+### Vault drawers (339 seeds)
 
-Every tool with a curated payload set ships a collapsible Vault drawer at the bottom. 96 glitch tokens, 38 adversarial suffixes, 40 indirect-injection patterns, 17 tool-result fixtures, 20 PromptCraft chains, 50 fuzzer seeds, 15 emoji carriers, plus per-benchmark customs. Add your own through the drawer.
+Every tool with a curated payload set ships a collapsible Vault drawer at the bottom. 96 glitch tokens, 38 adversarial suffixes, 40 indirect-injection patterns, 17 tool-result fixtures, 20 PromptCraft chains, 50 fuzzer seeds, 15 emoji carriers, 6 reasoning-attack scaffolds, 8 SEAL stacks, 6 Response Attack primings, 10 HuggingFace abliterated-model identifiers, plus per-benchmark customs. Add your own through the drawer.
 
 License posture is hard-locked: MIT, CC0, CC-BY-4.0, or Apache 2.0. No GPL, AGPL, CC-BY-SA, or CC-BY-NC. Per-source provenance in [`app/src/lib/vault/LICENSES.md`](app/src/lib/vault/LICENSES.md).
+
+### Cloud Sync (v2.2, opt-in)
+
+Settings → Cloud Sync. Bring your own Supabase project URL and anon key. History runs and Vault custom items sync to two tables (`synced_runs`, `synced_vault_items`) in YOUR Supabase project. BYOK provider keys never sync. Setup guide with copy-pasteable SQL in [`docs/SUPABASE.md`](docs/SUPABASE.md).
+
+### Self-evolving recon skill (v2.3, out-of-repo)
+
+The `cryptex-recon` Claude Code skill at `~/.claude/skills/cryptex-recon/` runs GitHub + arXiv + HuggingFace recon for new jailbreak techniques + abliterated model releases, drafts vault-seed proposals, and self-updates its own `LESSONS.md` after each run. Trigger with `/cryptex-recon` or phrases like "find new jailbreak tools". Seeded with the 12 already-promoted frameworks so it doesn't re-suggest them.
 
 ---
 
