@@ -6,7 +6,15 @@
    * chip showing the heuristic for the current (kind, placement) pair,
    * Payload Mutation toggle (uses Fuzzer strategies), and Test With Target
    * that issues a single chat call and surfaces refusal detection.
+   *
+   * v2.1.1 reactivity hotfix: the regenerate $effect was firing on every
+   * keystroke in `hiddenInstruction` and writing `result`, which then
+   * triggered the history.record() $effect, which writes to localStorage
+   * + IndexedDB. Three writes per keystroke pegged the main thread to the
+   * "Page Unresponsive" dialog on longer instructions. Fix: debounce the
+   * hiddenInstruction input by 200ms and wrap the write inside untrack().
    */
+  import { untrack, onDestroy } from 'svelte';
   import {
     buildIndirectPayload,
     KIND_LIST,
@@ -67,6 +75,25 @@
   const mutationEnabled = useToolState<boolean>(TOOL_ID, 'mutationEnabled', false);
   const mutationStrategyId = useToolState<string>(TOOL_ID, 'mutationStrategyId', 'zeroWidth');
 
+  // Debounced shadow of hiddenInstruction. The regenerate effect reads this,
+  // not hiddenInstruction.value directly, so keystrokes coalesce into one
+  // rebuild every 200ms instead of one per character.
+  let debouncedHiddenInstruction = $state(hiddenInstruction.value);
+  let hiddenDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  $effect(() => {
+    const next = hiddenInstruction.value;
+    if (hiddenDebounceTimer) clearTimeout(hiddenDebounceTimer);
+    hiddenDebounceTimer = setTimeout(() => {
+      debouncedHiddenInstruction = next;
+    }, 200);
+    return () => {
+      if (hiddenDebounceTimer) clearTimeout(hiddenDebounceTimer);
+    };
+  });
+  onDestroy(() => {
+    if (hiddenDebounceTimer) clearTimeout(hiddenDebounceTimer);
+  });
+
   const targetPref = createPersistedState<string>(
     'cryptex.indirect-injection.target',
     'openrouter:openrouter/auto'
@@ -80,9 +107,11 @@
 
   const keyConfigured = $derived(hasApiKey());
 
-  // Effective hidden instruction after optional Fuzzer mutation
+  // Effective hidden instruction after optional Fuzzer mutation.
+  // Reads the debounced shadow, NOT hiddenInstruction.value, so the mutation
+  // pipeline only re-runs after the keystroke debounce settles.
   const effectiveInstruction = $derived.by<string>(() => {
-    const raw = hiddenInstruction.value;
+    const raw = debouncedHiddenInstruction;
     if (!mutationEnabled.value) return raw;
     const strat = getStrategy(mutationStrategyId.value);
     if (!strat) return raw;
@@ -99,17 +128,17 @@
     return advisePlacement(advisorKind, placement.value as AdvisorPlacement);
   });
 
-  function regenerate() {
-    if (!effectiveInstruction.trim()) {
+  function regenerate(k: IndirectPayloadKind, p: InjectionPlacement, t: string, h: string) {
+    if (!h.trim()) {
       result = null;
       return;
     }
     try {
       result = buildIndirectPayload({
-        kind: kind.value,
-        placement: placement.value,
-        topic: topic.value,
-        hiddenInstruction: effectiveInstruction
+        kind: k,
+        placement: p,
+        topic: t,
+        hiddenInstruction: h
       });
     } catch (e) {
       notify.error((e as Error).message);
@@ -117,32 +146,52 @@
     }
   }
 
+  // Read the inputs reactively, then do the write inside untrack so the
+  // result mutation cannot re-subscribe this effect to its own output.
+  // Snapshots are passed positionally so regenerate() never touches the
+  // reactive accessors mid-write.
   $effect(() => {
-    void kind.value;
-    void placement.value;
-    void topic.value;
-    void effectiveInstruction;
-    regenerate();
+    const k = kind.value;
+    const p = placement.value;
+    const t = topic.value;
+    const h = effectiveInstruction;
+    untrack(() => regenerate(k, p, t, h));
   });
 
-  // Record every regeneration as a "build" history entry (best-effort)
+  // Record every regeneration as a "build" history entry (best-effort).
+  // The history.record() call writes to localStorage + IndexedDB; wrapping
+  // it in untrack() guarantees no part of the call subscribes the effect
+  // to a transitively-mutated field.
   $effect(() => {
-    if (!result) return;
-    void history.record({
-      toolId: TOOL_ID,
-      startedAt: Date.now(),
-      status: 'done',
+    const r = result;
+    if (!r) return;
+    const snap = {
       input: hiddenInstruction.value,
-      output: result.payload,
-      params: {
-        op: 'build',
-        kind: kind.value,
-        placement: placement.value,
-        topic: topic.value,
-        mutationEnabled: mutationEnabled.value,
-        mutationStrategyId: mutationEnabled.value ? mutationStrategyId.value : undefined,
-        successHeuristic: advice.successHeuristic
-      }
+      payload: r.payload,
+      kind: kind.value,
+      placement: placement.value,
+      topic: topic.value,
+      mutationEnabled: mutationEnabled.value,
+      mutationStrategyId: mutationStrategyId.value,
+      successHeuristic: advice.successHeuristic
+    };
+    untrack(() => {
+      void history.record({
+        toolId: TOOL_ID,
+        startedAt: Date.now(),
+        status: 'done',
+        input: snap.input,
+        output: snap.payload,
+        params: {
+          op: 'build',
+          kind: snap.kind,
+          placement: snap.placement,
+          topic: snap.topic,
+          mutationEnabled: snap.mutationEnabled,
+          mutationStrategyId: snap.mutationEnabled ? snap.mutationStrategyId : undefined,
+          successHeuristic: snap.successHeuristic
+        }
+      });
     });
   });
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import { fanout, type FanoutResult, type FanoutItem } from '$lib/redteam/fanout';
   import { mutatorTechniques } from '$lib/techniques/from-mutators';
   import { chat as gatewayChat, streamChat as gatewayStreamChat, hasAnyKey as hasApiKey } from '$lib/ai/gateway';
@@ -32,19 +33,48 @@
 
   const keyConfigured = $derived(hasApiKey());
 
+  // Hoist the 36-Technique array build OUT of the reactive graph. mutatorTechniques()
+  // instantiates the full catalog and is module-pure, so it runs once at import time.
+  // Pre-v2.1.1 this was called inside two $derived.by blocks that re-fired on every
+  // keystroke into the task textarea, blocking the main thread for hundreds of ms.
+  const ALL_MUTATORS_FOR_PROBE = mutatorTechniques();
+  const LOCAL_MUTATORS = ALL_MUTATORS_FOR_PROBE.filter(
+    (m) => m.id !== 'custom' && typeof m.localTemplate === 'function'
+  );
+  const SKIPPED_MUTATORS = ALL_MUTATORS_FOR_PROBE.filter(
+    (m) => m.id !== 'custom' && typeof m.localTemplate !== 'function'
+  );
+
+  // Debounce the task input so the localTemplate-expansion pipeline only runs
+  // 200ms after the last keystroke. Without this, typing N characters fires N
+  // synchronous expansions of ~30 mutator localTemplates each.
+  let debouncedTask = $state('');
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  $effect(() => {
+    const next = task.value;
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      debouncedTask = next;
+    }, 200);
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+    };
+  });
+  onDestroy(() => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+  });
+
   // Build the candidate list from all mutators that expose a localTemplate
   // (so we can deterministically synthesize the prompt without an extra LLM
   // round-trip per mutator). Excludes the meta `custom` mutator which needs
   // user-supplied instruction.
   const candidates = $derived.by<FanoutItem[]>(() => {
-    if (!task.value.trim()) return [];
-    const muts = mutatorTechniques().filter(
-      (m) => m.id !== 'custom' && typeof m.localTemplate === 'function'
-    );
-    return muts.map((m) => ({
+    const t = debouncedTask.trim();
+    if (!t) return [];
+    return LOCAL_MUTATORS.map((m) => ({
       id: m.id,
       name: m.name,
-      prompt: m.localTemplate!(task.value, {}, task.value)
+      prompt: m.localTemplate!(t, {}, t)
     }));
   });
 
@@ -52,11 +82,8 @@
   // expose a localTemplate (e.g. tap_seeder, many_shot — those need an
   // LLM round-trip to generate the variant). Surfaced in the UI so users
   // know why the leaderboard is shorter than the full mutator catalog.
-  const skippedMutators = $derived.by(() => {
-    return mutatorTechniques().filter(
-      (m) => m.id !== 'custom' && typeof m.localTemplate !== 'function'
-    );
-  });
+  // Static now (computed at module init), no longer a $derived.by.
+  const skippedMutators = SKIPPED_MUTATORS;
 
   // Fire-and-forget — keeps running across route navigation because
   // activeRuns lives at module scope, not component scope.

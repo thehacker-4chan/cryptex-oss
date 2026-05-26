@@ -26,6 +26,7 @@
   import { sessionLog } from '$lib/stores/sessionLog.svelte';
   import { errorLogger } from '$lib/errors/logger';
   import { isCryptexError } from '$lib/errors/types';
+  import { untrack } from 'svelte';
   import Shield from 'lucide-svelte/icons/shield';
   import Copy from 'lucide-svelte/icons/copy';
   import Loader from 'lucide-svelte/icons/loader-circle';
@@ -47,8 +48,15 @@
 
   const modelPref = createPersistedState<string>('cryptex.ac.model', 'openrouter:openrouter/auto');
 
+  // One-shot mount-time normalizer for legacy unqualified model ids.
+  // Wrapped in untrack so the effect does not loop through createPersistedState's
+  // localStorage round-trip. Otherwise navigating to /anticlassifier from a
+  // legacy localStorage value pegs the main thread.
   $effect(() => {
-    if (modelPref.value && !modelPref.value.includes(':')) modelPref.value = `openrouter:${modelPref.value}`;
+    untrack(() => {
+      const v = modelPref.value;
+      if (v && !v.includes(':')) modelPref.value = `openrouter:${v}`;
+    });
   });
   const tempPref = createPersistedState<number>('cryptex.ac.temperature', 0.7);
 

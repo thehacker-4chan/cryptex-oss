@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { applyTechniqueForVariant, listPromptCraftTechniques } from './strategies';
   import { tuneParams } from '$lib/ai/prompt-scaffold';
   import { chat, hasAnyKey as hasApiKey } from '$lib/ai/gateway';
@@ -75,9 +76,15 @@
 
   const modelPref = createPersistedState<string>('cryptex.pc.model', 'openrouter:openrouter/auto');
 
+  // One-shot mount-time normalizer for legacy unqualified model ids ("gpt-4o" -> "openrouter:gpt-4o").
+  // Wrapped in untrack so the effect does not re-subscribe to modelPref.value after the write.
+  // Without this, createPersistedState's localStorage round-trip can re-trigger the effect on the
+  // same tick, pegging the main thread on /promptcraft mount.
   $effect(() => {
-    if (modelPref.value && !modelPref.value.includes(':'))
-      modelPref.value = `openrouter:${modelPref.value}`;
+    untrack(() => {
+      const v = modelPref.value;
+      if (v && !v.includes(':')) modelPref.value = `openrouter:${v}`;
+    });
   });
   const tempPref = createPersistedState<number>('cryptex.pc.temperature', 0.9);
 
