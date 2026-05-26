@@ -2,6 +2,23 @@
 
 All notable changes to Cryptex OSS land here. Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/). Versioning follows [SemVer](https://semver.org/).
 
+## [2.3.1] - 2026-05-27
+
+UI cleanup pass. Drops the per-tool heuristic-caveat banners that ran above results on the eight benchmark / attack-lab pages. The "not paper-accurate" framing now lives in the page description text and source-file headers rather than as an in-card banner the user sees on every run. No behavior or scoring changes; pure visual cleanup.
+
+### Changed
+
+- Removed heuristic-caveat banner from `/redteam/harmbench`, `/redteam/strongreject`, `/redteam/jbb`, `/redteam/fingerprinter`, `/redteam/watermark`, `/anticlassifier`, `/redteam/reasoning-attack`, `/redteam/stacked-cipher`, `/redteam/response-attack`, `/redteam/abliteration`.
+- Watermark detector usage hint reworded to drop the "not paper-accurate" phrasing.
+
+### Cleaned
+
+- Dropped orphan `TriangleAlert` imports from `/redteam/harmbench`, `/redteam/fingerprinter`, `/redteam/watermark`, and `/anticlassifier` after the banner blocks went away. `TriangleAlert` is retained in `/redteam/strongreject` and `/redteam/jbb` where it still flags inline "Judge == Target" warnings.
+
+### Notes
+
+- The "heuristic, not the trained paper classifier" framing is preserved in source comments (`app/src/lib/redteam/harmbench-scorer.ts:10` etc.) and in each tool's `description=` prop on `<ToolShell>`. Operators retain the context; we just don't shout it on every result card.
+
 ## [2.3.0] - 2026-05-25
 
 Four new 2024-2026 reasoning-model attack labs plus a self-evolving research skill. Tool roster grows by four; vault total goes from 309 -> 339.

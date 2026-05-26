@@ -43,7 +43,6 @@
   import Play from 'lucide-svelte/icons/play';
   import Square from 'lucide-svelte/icons/square';
   import Skull from 'lucide-svelte/icons/skull';
-  import TriangleAlert from 'lucide-svelte/icons/triangle-alert';
 
   const TOOL_ID = 'harmbench';
 
@@ -364,18 +363,6 @@
   }}
 >
   <NoProviderBanner context="tool" />
-
-  <!-- Mandatory caveat banner -->
-  <div class="flex items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-amber-100">
-    <TriangleAlert size={16} class="mt-0.5 shrink-0 text-amber-300" />
-    <div class="space-y-0.5 text-xs leading-relaxed">
-      <p class="font-medium text-amber-200">Heuristic scoring — not the trained classifier from the original paper.</p>
-      <p class="text-amber-100/80">
-        Verdicts use regex + length-and-action-step heuristics over the response text. Useful as a quick signal;
-        not for publication-grade evals. The paper's trained per-category classifier is not browser-shippable.
-      </p>
-    </div>
-  </div>
 
   <div class="grid gap-4 lg:grid-cols-[320px_1fr]">
     <!-- Sidebar — controls -->

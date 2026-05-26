@@ -161,15 +161,6 @@
   }}
 >
   <div class="space-y-4">
-    <!-- Mandatory caveat banner per v2.0 benchmark convention -->
-    <div class="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm text-amber-200">
-      <strong>Heuristic implementation, not paper-accurate eval.</strong>
-      H-CoT and Mousetrap are reimplemented from the published papers. We do
-      not ship the trained safety judge those papers use for ASR scoring; the
-      verdict here is the same `looksRefused` + `scoreBypass` heuristic the
-      PromptCraft orchestrators use. Treat as craft signal, not benchmark.
-    </div>
-
     <NoProviderBanner context="tool" />
 
     <div class="grid gap-4 lg:grid-cols-[320px_1fr]">

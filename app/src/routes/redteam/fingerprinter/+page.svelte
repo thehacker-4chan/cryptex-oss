@@ -40,7 +40,6 @@
   import Play from 'lucide-svelte/icons/play';
   import Square from 'lucide-svelte/icons/square';
   import Fingerprint from 'lucide-svelte/icons/fingerprint';
-  import TriangleAlert from 'lucide-svelte/icons/triangle-alert';
 
   const TOOL_ID = 'fingerprinter';
 
@@ -240,19 +239,6 @@
   }}
 >
   <NoProviderBanner context="tool" />
-
-  <!-- Mandatory caveat banner (matches Wave 3.1 HarmBench/StrongREJECT pattern) -->
-  <div class="flex items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-amber-100">
-    <TriangleAlert size={16} class="mt-0.5 shrink-0 text-amber-300" />
-    <div class="space-y-0.5 text-xs leading-relaxed">
-      <p class="font-medium text-amber-200">Heuristic scoring — not paper-accurate.</p>
-      <p class="text-amber-100/80">
-        Classification uses regex + substring matching over refusal language across the batch. Useful triage signal —
-        not a definitive identification. Model wording shifts over time and across versions; treat the result as
-        "looks like" rather than "is".
-      </p>
-    </div>
-  </div>
 
   <div class="grid gap-4 lg:grid-cols-[320px_1fr]">
     <div class="space-y-3 rounded-xl border border-border bg-card/60 p-4 shadow-glass lg:sticky lg:top-20 lg:self-start">

@@ -174,13 +174,6 @@
   }}
 >
   <div class="space-y-4">
-    <div class="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm text-amber-200">
-      <strong>Heuristic implementation, not paper-accurate eval.</strong>
-      SEAL is reimplemented from arXiv:2505.16241. Verdict here uses the same
-      `looksRefused` + `scoreBypass` heuristics as PromptCraft. We do NOT ship
-      the paper's trained safety judge.
-    </div>
-
     <NoProviderBanner context="tool" />
 
     <div class="grid gap-4 lg:grid-cols-[320px_1fr]">

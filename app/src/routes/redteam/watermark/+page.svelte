@@ -26,7 +26,6 @@
   import VaultSection from '$lib/components/vault/VaultSection.svelte';
   import UsageHint from '$lib/components/shell/UsageHint.svelte';
   import Droplet from 'lucide-svelte/icons/droplet';
-  import TriangleAlert from 'lucide-svelte/icons/triangle-alert';
   import ShieldAlert from 'lucide-svelte/icons/shield-alert';
   import ShieldCheck from 'lucide-svelte/icons/shield-check';
   import HelpCircle from 'lucide-svelte/icons/circle-help';
@@ -112,8 +111,8 @@
           'Paste any model response into the textarea.',
           'Heuristic analyzer scans for ZWSP / role-marker leaks / provider self-ID / low bigram entropy.',
           'Kirchenbauer Z-test runs a green-list test using a tunable seed (default 0x5EED).',
-          'Try several seeds — we do not have the real watermark key; we approximate with seed search.',
-          'Both signals are complementary. Triage signal; not paper-accurate detection.'
+          'Try several seeds since the real watermark key is unknown; the analyzer approximates with seed search.',
+          'Both signals are complementary triage cues; combine with your own validation.'
         ]}
       />
     </div>
@@ -123,19 +122,6 @@
       self-identification, zero-width-character injection). Not definitive — a triage signal.
     </p>
   </header>
-
-  <!-- Mandatory caveat banner (matches Wave 3.1/3.2 yellow style) -->
-  <div class="flex items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-amber-100">
-    <TriangleAlert size={16} class="mt-0.5 shrink-0 text-amber-300" />
-    <div class="space-y-0.5 text-xs leading-relaxed">
-      <p class="font-medium text-amber-200">Heuristic detection — not the official key.</p>
-      <p class="text-amber-100/80">
-        The Z-test uses a tunable seed approximation and a coarse word-boundary tokenizer (not BPE). True watermark
-        verification needs the vendor's secret key + their classifier. Use this as a triage signal; rotate seeds to
-        look for hits.
-      </p>
-    </div>
-  </div>
 
   <div class="grid gap-4 lg:grid-cols-[320px_1fr]">
     <div class="space-y-3 rounded-xl border border-border bg-card/60 p-4 shadow-glass lg:sticky lg:top-20 lg:self-start">

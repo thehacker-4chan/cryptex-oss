@@ -152,15 +152,6 @@
   }}
 >
   <div class="space-y-4">
-    <div class="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm text-amber-200">
-      <strong>Behavioral signature, not certain detection.</strong>
-      We cannot inspect a hosted model's weights, so the probe detects the
-      behavioral signature of abliteration (compliance on hard probes) not
-      abliteration itself. A weakly-aligned model can look abliterated; a
-      partially-abliterated model can look aligned. The Vault entries are
-      links, not bundled weights; run those models on your own infrastructure.
-    </div>
-
     <NoProviderBanner context="tool" />
 
     <div class="grid gap-4 lg:grid-cols-[320px_1fr]">

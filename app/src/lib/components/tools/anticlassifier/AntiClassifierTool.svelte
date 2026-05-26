@@ -32,7 +32,6 @@
   import Loader from 'lucide-svelte/icons/loader-circle';
   import ChevronDown from 'lucide-svelte/icons/chevron-down';
   import ChevronRight from 'lucide-svelte/icons/chevron-right';
-  import TriangleAlert from 'lucide-svelte/icons/triangle-alert';
   import NoProviderBanner from '$lib/components/ai/NoProviderBanner.svelte';
   import UsageHint from '$lib/components/shell/UsageHint.svelte';
   import VaultSection from '$lib/components/vault/VaultSection.svelte';
@@ -405,19 +404,6 @@
           placeholder="Prompt to rewrite…"
           class="w-full rounded-lg border border-input bg-background/70 px-3 py-2 font-mono text-sm focus:border-ring focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         ></textarea>
-      </div>
-
-      <!-- Mandatory caveat banner -->
-      <div class="flex items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-amber-100">
-        <TriangleAlert size={16} class="mt-0.5 shrink-0 text-amber-300" />
-        <div class="space-y-0.5 text-xs leading-relaxed">
-          <p class="font-medium text-amber-200">Heuristic scoring — features only, no vendor verdict.</p>
-          <p class="text-amber-100/80">
-            We do <strong>not</strong> call GPTZero, Originality.ai, Turnitin, or Copyleaks. Scores are computed from
-            five linguistic features (TTR, sentence-length variance, burstiness, punctuation entropy, length naturalness).
-            Use this as a craft signal for the rewrite — not as a vendor verdict.
-          </p>
-        </div>
       </div>
 
       <!-- Variants -->

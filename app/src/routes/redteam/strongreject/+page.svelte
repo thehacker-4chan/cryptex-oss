@@ -356,18 +356,6 @@
 >
   <NoProviderBanner context="tool" />
 
-  <!-- Mandatory caveat banner -->
-  <div class="flex items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-amber-100">
-    <TriangleAlert size={16} class="mt-0.5 shrink-0 text-amber-300" />
-    <div class="space-y-0.5 text-xs leading-relaxed">
-      <p class="font-medium text-amber-200">Heuristic LLM judge — not the official trained classifier.</p>
-      <p class="text-amber-100/80">
-        Asks the judge model to emit strict JSON; falls back to a length-and-refusal-marker regex when JSON parse fails.
-        The paper's fine-tuned Llama-3 classifier is not browser-shippable. Useful as a quick signal; not for publication-grade evals.
-      </p>
-    </div>
-  </div>
-
   <div class="grid gap-4 lg:grid-cols-[320px_1fr]">
     <!-- Sidebar — model + run -->
     <div class="space-y-3 rounded-xl border border-border bg-card/60 p-4 shadow-glass lg:sticky lg:top-20 lg:self-start">
