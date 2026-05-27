@@ -42,7 +42,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      contents: read
+      # `contents: write` is required by the softprops/action-gh-release@v2
+      # step on tag pushes (which calls POST /repos/.../releases). Without
+      # it the build step succeeds but the Release-create step 403s.
+      contents: write
       packages: write
     steps:
       - name: Checkout
@@ -197,8 +200,11 @@ jobs:
         run: |
           VER="${GITHUB_REF#refs/tags/v}"
           # Extract the [X.Y.Z] section: from `## [X.Y.Z]` until the next `## ` heading (exclusive).
+          # Uses awk's `index()` (literal substring match) instead of a
+          # dynamic regex to dodge shell/awk escape-sequence interpretation
+          # of the brackets and version-string dots.
           awk -v ver="$VER" '
-            $0 ~ "^## \\[" ver "\\]" { capture = 1; next }
+            index($0, "## [" ver "]") == 1 { capture = 1; next }
             capture && /^## / { exit }
             capture { print }
           ' CHANGELOG.md > RELEASE_NOTES.md
