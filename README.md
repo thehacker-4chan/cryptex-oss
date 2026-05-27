@@ -284,9 +284,8 @@ uv run cryptex-cli /caesar --shift 5 "Attack at dawn"
 2. Export `default new BaseTransformer({...})` from `src/transformers/BaseTransformer.js`.
 3. Pick a `priority` (1 to 310) using the guide at the bottom of `BaseTransformer.js`.
 4. Run `npm run build` from the repo root.
-5. Add coverage to `tests/test_universal.js`.
 
-Auto-discovered. Web app, CLI, and tests pick it up.
+Auto-discovered. Web app and CLI pick it up via the SvelteKit Vite-glob registry and the Node loader respectively.
 
 ### Add a tool surface
 
@@ -299,7 +298,6 @@ Auto-discovered. Web app, CLI, and tests pick it up.
 
 ```bash
 cd app && npm run check && npx vitest run && npm run build
-cd .. && npm run test:all
 uv run cryptex-cli list
 ```
 
@@ -325,3 +323,5 @@ Cryptex OSS bundles small red-team corpora (glitch tokens, adversarial suffixes,
   <br>
   <strong>Sibling product:</strong> <a href="https://cryptex.m4xx.cfd/?ref=github.com">cryptex.m4xx.cfd</a> (chat playground, attack-chain composer; separate codebase)
 </p>
+
+> P.S. — A tip of the hat to [elder-plinius/P4RS3LT0NGV3](https://github.com/elder-plinius/P4RS3LT0NGV3): every model in this toolkit was already jailbroken there before our `npm install` finished, so consider Cryptex OSS the release engineering on his hobby.

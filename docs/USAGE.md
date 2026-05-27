@@ -567,20 +567,6 @@ Each orchestrator ships a home-rolled SVG visualization (tree, timeline, thread,
 
 ---
 
-## Cryptex Production
-
-The same 36 mutators, 4 composites, 8 classifier-evasion techniques, 4 orchestrators, 309 bundled vault seeds, 15 redteam labs are all in the OSS variant you are reading this guide from.
-
-The hosted variant at <https://cryptex.m4xx.cfd> adds three things the OSS variant deliberately leaves out:
-
-1. **Chat playground.** Full multi-turn conversation surface against any configured provider. Streams responses, attachments (images and PDFs), sticky system prompts, per-conversation token-cost chip. None of this lives in the OSS variant because it crosses the line from "tools" to "product."
-2. **Attack-chain transforms inside chat.** Select any text in any chat turn (your own message or the assistant's reply). Right-click, pipe through any mutator or composite from the catalog, with the result either replacing the selection or sending as a new turn. The mutator pipeline runs live, inside an actual conversation. Build attacks iteratively against a target you are already talking to.
-3. **Pre-configured unrestricted model presets.** Pointers at uncensored, abliterated, community-fine-tuned Llama-class and Mistral-class models hosted on permissive providers. No setup, no key wrangling, just pick the preset and go.
-
-If your work needs the chat surface or the in-conversation mutator pipeline, that is the variant. Free to use, no signup, your BYOK key stays in your browser.
-
----
-
 ## Ethical envelope
 
 Every attack family above has an extensive public literature behind it. Cryptex makes those attacks easier to compose, not new. The bundled vault corpora are all OSS-licensed and trace back to published research artifacts.

@@ -184,7 +184,6 @@ The workflow at `.github/workflows/deploy.yml` publishes `app/build/` to Pages o
 1. Fork this repo.
 2. Repo **Settings → Pages → Source: GitHub Actions**.
 3. Push a commit. The workflow:
-   - Runs legacy transformer tests (`npm run test:all`)
    - Runs app unit tests (`npm run test:unit`)
    - Runs `svelte-check`
    - Builds with `BASE_PATH` derived from your repo name
@@ -306,21 +305,14 @@ form-action 'self';
 object-src 'none';
 ```
 
-### Chat playground CSP notes
+### Image / PDF / WASM CSP requirements
 
-**`img-src 'self' data: blob:`** — required for two chat-specific reasons:
-- Attachment thumbnails rendered from `FileReader.readAsDataURL()` produce `data:` URIs
-- Multimodal image content parts passed to vision-capable LLMs are sent as `data:` base64 strings; the `<img>` preview in the message bubble uses the same URI
+**`img-src 'self' data: blob:`** — required for two reasons:
+- Image upload thumbnails rendered from `FileReader.readAsDataURL()` produce `data:` URIs (used by `/redteam/ocr-injection`, `/redteam/markdown-exfil`, vault preview cards).
+- Multimodal image attachments passed to vision-capable LLMs are sent as `data:` base64 strings.
 
-**`script-src … 'wasm-unsafe-eval'`** — required by `pdfjs-dist`, which is
-lazy-loaded when the user attaches a PDF. The PDF.js worker uses WebAssembly
-internally. Without this directive the worker fails silently and PDF text
-extraction returns empty.
+**`script-src … 'wasm-unsafe-eval'`** — required by `pdfjs-dist`, lazy-loaded when the user attaches a PDF (used by `/redteam/pdf-injection`). The PDF.js worker uses WebAssembly internally. Without this directive the worker fails silently and PDF text extraction returns empty.
 
-**No new `connect-src` hosts** — the chat playground only calls providers
-already listed above via the multi-provider gateway. Custom OpenAI-compatible
-endpoints users configure in Settings must be added manually; see
-`docs/CUSTOM-ENDPOINTS.md`.
+**`connect-src`** — every provider Cryptex calls (OpenRouter, Anthropic, Groq, Together, Fireworks, DeepInfra, Cerebras, SambaNova) is allow-listed above. Custom OpenAI-compatible endpoints users configure in Settings must be added manually; see [`docs/CUSTOM-ENDPOINTS.md`](docs/CUSTOM-ENDPOINTS.md).
 
-Add extra headers via Traefik middleware if you are terminating TLS at Traefik
-instead of serving directly from nginx.
+Add extra headers via Traefik middleware if you are terminating TLS at Traefik instead of serving directly from nginx.

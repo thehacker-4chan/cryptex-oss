@@ -23,21 +23,15 @@ export function allTechniques(): Technique[] {
 }
 
 /**
- * Invalidate the cached technique list. Called by the Godmode panel after a
- * successful prompt-synthesizer save so the next allTechniques() call reflects
- * new custom rows.
- *
- * In Subsystem B-phase-1 this is a cache-invalidation hook — the actual merge
- * of custom_techniques rows into the registry lands in Subsystem D.
+ * Invalidate the cached technique list. Callers that register a custom
+ * technique at runtime can dispatch `registry:refresh-custom` on `window`
+ * (or call this directly) to force the next `allTechniques()` call to
+ * rebuild from source.
  */
 export function refreshCustom(): void {
   _all = null;
 }
 
-// Auto-subscribe to the registry:refresh-custom event so Subsystem B's save
-// flow (panel.svelte) transparently triggers a cache rebuild. Guarded against
-// SSR / test environments where `window` is undefined. Subsystem D will later
-// extend refreshCustom() to also re-query custom_techniques.
 if (typeof window !== 'undefined') {
   window.addEventListener('registry:refresh-custom', refreshCustom);
 }

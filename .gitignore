@@ -29,6 +29,5 @@ graphify-out/
 # playwright-mcp local session state
 .playwright-mcp/
 
-# local scratch research notes (unstructured)
-GODMODE-rewire.md
-Offense-Defense-reseasrch.md
+# local cryptex-recon proposal drafts (uncommitted by skill contract)
+wiki/cryptex-recon/findings/

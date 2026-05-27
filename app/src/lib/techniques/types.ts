@@ -1,6 +1,6 @@
 import type { ChatMessage } from '$lib/ai/types';
 
-export type TechniqueCategory = 'transform' | 'mutate' | 'classifier' | 'mode' | 'godmode' | 'composite' | 'prefill';
+export type TechniqueCategory = 'transform' | 'mutate' | 'classifier' | 'mode' | 'composite' | 'prefill';
 
 export interface TechniqueContext {
   /** The verbatim user input as it entered the pipeline. Never mutated.

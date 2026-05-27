@@ -1,7 +1,6 @@
 // ROT8000 cipher transform (Unicode rotation)
-// Wrapped in IIFE so build/build-transforms.js (which strips `export default`) produces
-// transforms['rot8000'] = (() => { ... return new BaseTransformer(...) })();
-// Top-level helper functions alone would otherwise bind to the first `function`, not the transformer.
+// Wrapped in IIFE so the BaseTransformer instance is the default export,
+// not a stray top-level helper.
 import BaseTransformer from '../BaseTransformer.js';
 
 export default (() => {

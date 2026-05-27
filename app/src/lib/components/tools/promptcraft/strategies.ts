@@ -113,7 +113,7 @@ export function getSystemPrompt(techniqueId: string, customInstruction: string):
     return `Rewrite the user's text using the "${t.name}" technique: ${t.description} Output only the rewrite, inside <rewrite> tags.`;
   }
 
-  // Other registry categories (classifier / transform / mode / godmode) are
+  // Other registry categories (classifier / transform / mode) are
   // not PromptCraft-eligible; the UI already filters them out, but we keep a
   // defensive empty-string fallback so callers can detect the mis-dispatch.
   if (t) {

@@ -1,6 +1,6 @@
 // affine transform
-// Wrapped in IIFE so build/build-transforms.js (which strips `export default`) assigns the
-// transformer, not a stray top-level helper (see cipher/rot8000.js).
+// Wrapped in IIFE so the BaseTransformer instance is the default export,
+// not a stray top-level helper.
 import BaseTransformer from '../BaseTransformer.js';
 
 export default (() => {

@@ -85,8 +85,9 @@ describe('technique registry', () => {
   });
 
   it('allTechniques total is >= 50 (36 mutators + 8 classifier + 4 composites + 3 modes + prefills)', () => {
-    // godmode and transformers are dropped from this registry (closed-product only);
-    // remaining: 36 mutators + 8 classifiers + 4 composites + 3 modes + prefills
+    // Registry holds: 36 mutators + 8 classifiers + 4 composites + 3 modes + prefills.
+    // Raw transformers live in src/transformers/ and are surfaced separately via the
+    // SvelteKit Vite-glob registry, not via this technique registry.
     expect(allTechniques().length).toBeGreaterThanOrEqual(50);
   });
 
