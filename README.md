@@ -8,7 +8,7 @@
     docs/img/screenshot-harmbench.png       third feature shot
 -->
 <p align="center">
-<img src="docs/img/Promp-Craft-TAP.png" alt="Cryptex OSS" width="7%">
+<img src="docs/img/logo.png" alt="Cryptex OSS" width="7%">
 <h1 align="center">Cryptex OSS</h1>
 </p>
 <p align="center">
@@ -49,7 +49,7 @@
 ---
 
 <p align="center">
-  <img src="docs/img/screenshot-promptcraft.png" alt="PromptCraft multi-step viz" width="100%">
+  <img src="docs/img/Promp-Craft-TAP.png" alt="PromptCraft multi-step viz" width="100%">
 </p>
 <p align="center">
   <sub>Left: 159 transformers, encode + decode, options per transform. Middle: PromptCraft multi-step viz (TAP tree shown). Right: HarmBench heuristic scoring with per-category breakdown.</sub>
