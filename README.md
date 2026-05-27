@@ -48,6 +48,9 @@
 
 ---
 
+<p>
+  <img src="docs/img/screenshot-promptcraft.png" alt="PromptCraft multi-step viz" width="100%">
+</p>
 <p align="center">
   <img src="docs/img/Promp-Craft-TAP.png" alt="PromptCraft multi-step viz" width="100%">
 </p>
