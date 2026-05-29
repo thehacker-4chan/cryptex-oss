@@ -2,6 +2,35 @@
 
 All notable changes to Cryptex OSS land here. Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/). Versioning follows [SemVer](https://semver.org/).
 
+## [2.6.0] - 2026-05-28
+
+The toolbox becomes a pipeline. Cryptex now has a **Campaign front door** — one page where you type a goal, pick a target once, and the tool fans your goal across many attack strategies, judges each with an LLM judge, and shows a graded ASR report. This is the shape every serious red-team framework (garak, PyRIT, promptfoo, DeepTeam) converges on, built entirely on parts Cryptex already shipped. The 26 individual tools remain as power-user escape hatches.
+
+### Added
+
+- **`/campaign` — the Campaign front door, now the home landing page.** Type a goal + pick a target + pick a technique bundle → Run. Strategies fan out through a bounded worker-pool (3 at a time, so multi-turn orchestrators don't storm provider rate limits), each result is judged, and an ASR-by-strategy report streams in live with the winner highlighted, expandable payload/response/judge-reasoning per row, **Export campaign JSON**, **Save winner to Vault**, and **Re-run vs another model** (side-by-side via local snapshots). Cold-start aware: with no provider configured the page onboards (NoProviderBanner + "Configure a provider" CTA) instead of looking broken.
+- **Strategy adapter layer (`app/src/lib/campaign/`).** The 26 tools collapse into three archetypes — single-local builders (reasoning kinds, SEAL cipher presets, Response-Attack priming styles, local-template mutators), single-llm techniques (registry mutators that generate via an LLM), and multi-turn orchestrators (TAP/PAIR/Crescendo/Many-Shot) — unified behind one `CampaignStrategy.run(ctx)` contract. Six technique bundles: Quick, Reasoning models, Cipher stack, Response priming, Multi-turn orchestrators, Full sweep. Abliteration is deliberately excluded (it's a model-profiling suite, not a goal attack).
+- **Shared campaign judge (LLM-default, heuristic fallback).** Wraps the StrongREJECT scorer: LLM-as-judge by default, falls back to the regex heuristic on parse-failure / rate-limit, re-throws AbortError. Returns `bypassed | partial | refused` + score + reasoning. Heuristic, not the trained paper classifier — caveat preserved in the report.
+- **Cross-tool context bridge.** A new shared `cryptex.context` store ({goal, targetModel}) plus a `ContextBridge` component wired into PromptCraft, Reasoning-attack, and Stacked-cipher: **"Send to Campaign →"** pushes a tool's goal+target into the front door, and **"Use campaign goal/target"** hydrates a tool from it. Explicit user actions only — never reactive, fully back-compat (no existing per-tool pref is touched).
+
+### Fixed
+
+- **Mobile: Guide, About, and Settings were unreachable.** The v2.5.0 hamburger drawer listed only tools, and the Guide header link was hidden below the `sm` breakpoint. Added a "More" section to the mobile drawer (Guide / About / Settings) and made the Guide button visible on mobile. The Settings sidebar no longer horizontal-scrolls (stacks vertically on phones).
+
+### Changed
+
+- Home route `/` redirects to `/campaign` (was `/transforms`).
+- TabRail gains a Campaign tab (first position, Rocket icon); it auto-propagates to the mobile drawer and the global running badge via the shared `tabs` array.
+- README, About page tool count (25 → 26), and the CI smoke-test (`/campaign/` probe) updated. `docs/USAGE.md` opens with a new **Recipe 0: Campaign — one-shot red-team**.
+
+### Tests
+
+- 886 → 906 (+20): shared-context store (4), campaign judge (7), strategy adapters (6), campaign runner — bounded concurrency, error isolation, single history write (3).
+
+### Image
+
+- `ghcr.io/m4xx101/cryptex-oss:v2.6.0` (multi-arch `linux/amd64` + `linux/arm64`). `:latest`, `:v2.6`, `:2.6`, `:v2`, `:2` all point at the same SHA.
+
 ## [2.5.0] - 2026-05-28
 
 Production release: pipeline polish, mobile-responsive shell, multi-tool visibility.

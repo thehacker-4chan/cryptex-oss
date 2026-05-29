@@ -13,7 +13,7 @@
 </p>
 <p align="center">
   <strong>Open-source LLM red-team lab.</strong><br>
-  159 transforms, 25 tool surfaces, BYOK gateway. Runs in your browser.
+  159 transforms, 26 tool surfaces, one Campaign front door, BYOK gateway. Runs in your browser.
 </p>
 
 <p align="center">
@@ -62,7 +62,7 @@
 
 ## What it is
 
-Cryptex bundles 159 text transformers (encodings, classical ciphers, Unicode tricks, steganography, ancient scripts) with 25 specialized tool surfaces. Ten technique workbenches (Transform, Decode, Emoji stego, Gibberish, Tokenizer, Tokenade, Bijection, Fuzzer, PromptCraft, Anti-Classifier) and fifteen red-team labs covering the 2024 to 2026 jailbreak literature (HarmBench, StrongREJECT, JailbreakBench, indirect injection, glitch tokens, adversarial suffixes, defense fingerprinting, watermark forensics). It is the lab bench for adversarial-prompt and encoding research.
+Cryptex bundles 159 text transformers (encodings, classical ciphers, Unicode tricks, steganography, ancient scripts) with 26 specialized tool surfaces. The **Campaign** front door is the one-shot way in: type a goal, pick a target once, and Cryptex fans your goal across many attack strategies, judges each with an LLM judge, and shows a graded ASR report you can export. Behind it sit ten technique workbenches (Transform, Decode, Emoji stego, Gibberish, Tokenizer, Tokenade, Bijection, Fuzzer, PromptCraft, Anti-Classifier) and fifteen red-team labs covering the 2024 to 2026 jailbreak literature (HarmBench, StrongREJECT, JailbreakBench, indirect injection, glitch tokens, adversarial suffixes, defense fingerprinting, watermark forensics). It is the lab bench for adversarial-prompt and encoding research.
 
 Everything runs in your browser. No backend, no database, no telemetry. AI calls go from your browser direct to whichever provider you choose, with your BYOK key staying in `localStorage`. Open source under MIT. Same canonical 159 transformers feed both the SvelteKit app and the Python CLI, so adding one anywhere makes it available everywhere.
 
@@ -130,7 +130,7 @@ Need a subpath? Build with `BASE_PATH=/cryptex` to serve at `/cryptex/...` inste
 
 ## Use it on your phone
 
-The app is responsive. Just visit the URL on mobile and add to home screen for one-tap launch. The full feature set works on iOS Safari and Chrome Android, including the BYOK gateway and all 25 tool surfaces.
+The app is responsive. Just visit the URL on mobile and add to home screen for one-tap launch. The full feature set works on iOS Safari and Chrome Android, including the BYOK gateway and all 26 tool surfaces.
 
 For private personal hosting reachable from your phone anywhere: run the Docker image on a Raspberry Pi or any home box, then expose it through Tailscale Funnel or Cloudflare Tunnel. Your phone reaches your self-hosted instance over HTTPS with zero port-forwarding and no public DNS exposure.
 

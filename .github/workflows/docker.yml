@@ -187,6 +187,7 @@ jobs:
           done
           echo "--- routes ---"
           curl -s -o /dev/null -w "%{http_code}  /\n"             http://localhost:8080/
+          curl -s -o /dev/null -w "%{http_code}  /campaign/\n"    http://localhost:8080/campaign/
           curl -s -o /dev/null -w "%{http_code}  /transforms/\n"  http://localhost:8080/transforms/
           curl -s -o /dev/null -w "%{http_code}  /decode/\n"      http://localhost:8080/decode/
           curl -s -o /dev/null -w "%{http_code}  /emoji/\n"       http://localhost:8080/emoji/

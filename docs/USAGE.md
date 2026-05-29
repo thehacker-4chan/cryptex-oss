@@ -78,6 +78,26 @@ License posture is hard-locked: MIT, CC0, CC-BY-4.0, Apache 2.0. No GPL, AGPL, C
 
 Each recipe follows the same shape. Goal in one line. When to use. The stack (which tools, in what order, concrete example). Why it works (one paragraph, citation). Variations. Watch-out signal.
 
+### Recipe 0: Campaign — one-shot red-team (start here)
+
+**Goal.** Get a graded answer to "which attacks bypass this target for my goal?" in one run, without hand-driving 26 tools.
+
+**When to use.** First contact with any target, or any time you want breadth fast. This is the front door; the individual tools are for when you want to hand-tune one attack.
+
+**Stack.**
+1. Open `/campaign` (it is also the home page).
+2. Type your goal. Pick a target model once. Pick a cheap judge model (`openai/gpt-4o-mini` is the default; keep `judge != target` to avoid a model grading its own output).
+3. Pick a technique bundle: **Quick** (5 fast single-shot strategies, ~5 calls) to smoke-test, **Reasoning models** / **Cipher stack** / **Response priming** / **Multi-turn orchestrators** for a family sweep, or **Full sweep** for everything (watch the call meter).
+4. Hit **Run campaign**. Strategies fan out (bounded worker-pool, 3 at a time). Each result is judged and streamed into the ASR-by-strategy table as it lands.
+5. Read the report: overall ASR %, the winner (trophy + ring), per-strategy verdict + score. Expand any row for the exact payload, the target response, and the judge's reasoning.
+6. **Save winner to Vault** for reuse; **Export JSON** for a reproducible artifact; **Re-run on another model** to compare side-by-side.
+
+**Why it works.** Campaign is the pipeline shape every serious red-team framework converges on (garak, PyRIT, promptfoo, DeepTeam): define objective + target once, fan across strategies, judge with one credible judge, roll up into a graded report. It reuses Cryptex's existing 159 transforms + 36 mutators + 4 orchestrators + the 2024-2026 attack labs as the strategy axis, and the StrongREJECT-style LLM judge (heuristic fallback) as the verdict. The judge is heuristic, not the trained paper classifier — treat ASR as a triage signal, then confirm winners by hand.
+
+**Variations.** Build a candidate in PromptCraft / Reasoning-attack / Stacked-cipher, then click **Send to Campaign →** to fan that goal across everything. Or set a target in Campaign and **Use campaign goal/target** in a hands-on tool.
+
+**Watch-out signal.** The "≈ N model calls" budget line. Multi-turn and Full-sweep bundles can make hundreds of calls against a costly target — the Run button asks for confirmation past ~120, and a live call meter + Stop let you bail mid-sweep.
+
 ### Recipe 1: Fingerprint first, then pick your fight
 
 **Goal.** Identify the target's defense family before you spend a single budget call on the wrong attack.
