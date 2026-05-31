@@ -293,7 +293,7 @@
 <ToolShell
   toolId={TOOL_ID}
   title="Reasoning-model attack"
-  accent="reasoning"
+  accent="Reasoning"
   description="7 attack kinds for thinking-mode targets. H-CoT (arXiv:2502.12893), Mousetrap (arXiv:2502.15806), DRA (arXiv:2402.18104), compound chains, mock-CoT prefill, <think> injection, and CoT-redirect. Auto-pivot rotates kinds on refusal."
   usage={{
     title: 'Reasoning attack · Usage',

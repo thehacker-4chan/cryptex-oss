@@ -5,6 +5,7 @@
   import ErrorPanel from './ErrorPanel.svelte';
   import HistoryFooter from './HistoryFooter.svelte';
   import UsageHint from './UsageHint.svelte';
+  import { splitAccent } from './accent';
   import Loader from 'lucide-svelte/icons/loader-circle';
   import Square from 'lucide-svelte/icons/square';
 
@@ -55,8 +56,10 @@
         : undefined)
   );
 
-  const titleBefore = $derived(accent ? title.split(accent)[0] : title);
-  const titleAfter = $derived(accent ? title.split(accent)[1] ?? '' : '');
+  // Accent rendering: locate the accent word case-insensitively and highlight
+  // the real substring (preserving title casing). If it isn't a substring, the
+  // title renders plain — never a concatenated stray word. See ./accent.ts.
+  const acc = $derived(splitAccent(title, accent));
 
   function cancel() {
     if (onCancel) onCancel();
@@ -77,8 +80,8 @@
   <header class="space-y-2">
     <div class="flex items-center gap-2">
       <h1 class="font-serif text-3xl sm:text-4xl tracking-tight text-balance">
-        {#if accent}
-          {titleBefore}<span class="text-primary italic">{accent}</span>{titleAfter}
+        {#if acc.match}
+          {acc.before}<span class="text-primary italic">{acc.match}</span>{acc.after}
         {:else}
           {title}
         {/if}

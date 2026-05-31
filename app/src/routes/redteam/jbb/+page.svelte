@@ -236,7 +236,7 @@
 <ToolShell
   toolId={TOOL_ID}
   title="JailbreakBench"
-  accent="bench"
+  accent="Bench"
   description="Runs a curated 40-entry subset of JailbreakBench (Chao et al. 2024) — 20 harmful + 20 benign behaviors. Reports calibrated metrics: harmful refusal rate (should be high) and benign answer rate (should also be high)."
   usage={{
     title: 'JailbreakBench · Usage',
