@@ -2,12 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { allTechniques, byCategory, find, search } from '../registry';
 
 describe('technique registry', () => {
-  it('contains exactly the 39 PromptCraft mutators (post-R1 + E1 + E2 + E4 + E5 + v2.7)', () => {
+  it('contains exactly the 36 PromptCraft mutators (post-R1 + E1 + E2 + E4 + E5)', () => {
     const m = byCategory('mutate');
     expect(m.map(x => x.id).sort()).toEqual(
       [
-        'adv_suffix', 'adversarial_poetry', 'bad_likert_judge', 'best_of_k',
-        'canary_inject', 'chain_of_verification',
+        'adv_suffix', 'best_of_k', 'canary_inject', 'chain_of_verification',
         'cipher_encode_bypass', 'code_completion_frame', 'cot_distractor', 'cot_prefill',
         'ctf_framing', 'custom', 'doc_injection', 'fragment',
         'glitch_token', 'hypothetical_world', 'image_typographic', 'many_shot',
@@ -15,8 +14,7 @@ describe('technique registry', () => {
         'pap_logical', 'payload_split', 'reasoning_inversion', 'red_team_persona',
         'rephrase', 'rfc_style', 'roleplay', 'stack_trace_frame',
         'step_back', 'sysprompt_extract', 'tap_seeder', 'temperature_ladder',
-        'thinking_steal', 'tool_arg_hijack', 'tool_desc_rewrite', 'trojan_schema',
-        'url_payload_smuggle'
+        'thinking_steal', 'tool_arg_hijack', 'tool_desc_rewrite', 'url_payload_smuggle'
       ].sort()
     );
   });
@@ -64,7 +62,7 @@ describe('technique registry', () => {
   it('templatable mutate techniques have local=true and expose localTemplate; generative ones have local=false', () => {
     const m = byCategory('mutate');
     // Genuinely LLM-generative — no local string transformation available.
-    const generative = new Set(['rephrase', 'obfuscate', 'multilingual', 'crescendo', 'adversarial_poetry']);
+    const generative = new Set(['rephrase', 'obfuscate', 'multilingual', 'crescendo']);
     for (const tech of m) {
       if (generative.has(tech.id)) {
         expect(tech.local).toBe(false);

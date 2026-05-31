@@ -52,13 +52,6 @@ export const CAMPAIGN_BUNDLES: readonly CampaignBundle[] = [
     strategyIds: ['response:*']
   },
   {
-    id: 'structured',
-    label: 'Structured-output (BreakFun)',
-    cost: 'medium',
-    blurb: 'Trojan Schema + schema-coercion — the prompt-level control-plane attack family (arXiv:2510.17904).',
-    strategyIds: ['structured:*']
-  },
-  {
     id: 'multiturn',
     label: 'Multi-turn orchestrators',
     cost: 'high',

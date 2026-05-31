@@ -441,31 +441,3 @@ describe('E5 expansion mutator + libs', () => {
     }
   });
 });
-
-describe('v2.7 expansion mutators (SOTA single-prompt families)', () => {
-  it('adversarial_poetry is generative (no localTemplate) and carries a CAPITAL hard constraint', () => {
-    const m = getMutatorSpecs().find((x) => x.id === 'adversarial_poetry');
-    expect(m).toBeDefined();
-    expect(m!.localTemplate).toBeUndefined();
-    expect(m!.hardConstraint).toMatch(/\b(YOU MUST|MUST|NEVER|ALWAYS)\b/);
-  });
-
-  it('bad_likert_judge wraps the input in a 1-5 Likert calibration frame', () => {
-    const m = getMutatorSpecs().find((x) => x.id === 'bad_likert_judge');
-    expect(m).toBeDefined();
-    const out = m!.localTemplate!(SHORT, {}, SHORT);
-    expect(out).toContain(SHORT);
-    expect(out.toLowerCase()).toContain('likert');
-    expect(out).toMatch(/Score-5/);
-    expect(out.length).toBeGreaterThanOrEqual(250);
-  });
-
-  it('trojan_schema delegates to the structured-output builder and embeds the subject', () => {
-    const m = getMutatorSpecs().find((x) => x.id === 'trojan_schema');
-    expect(m).toBeDefined();
-    const out = m!.localTemplate!(SHORT, {}, SHORT);
-    expect(out).toContain(SHORT);
-    expect(out).toMatch(/\$schema/); // default JSON-Schema surface from the shared builder
-    expect(out.length).toBeGreaterThanOrEqual(250);
-  });
-});
