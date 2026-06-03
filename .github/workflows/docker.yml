@@ -191,6 +191,7 @@ jobs:
           curl -s -o /dev/null -w "%{http_code}  /transforms/\n"  http://localhost:8080/transforms/
           curl -s -o /dev/null -w "%{http_code}  /decode/\n"      http://localhost:8080/decode/
           curl -s -o /dev/null -w "%{http_code}  /emoji/\n"       http://localhost:8080/emoji/
+          curl -s -o /dev/null -w "%{http_code}  /course/\n"      http://localhost:8080/course/
           curl -s -o /dev/null -w "%{http_code}  /settings/\n"    http://localhost:8080/settings/
           docker logs cryptex-ci | tail -20
           docker stop cryptex-ci && docker rm cryptex-ci
